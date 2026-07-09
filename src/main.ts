@@ -45,14 +45,22 @@ function checkCitations(): void {
     return;
   }
 
-  const results: CitationResult[] = candidates.map((raw) => {
-    const parsed = parseCaseCitation(raw);
-    return {
-      raw,
-      parseFailed: parsed === null,
-      issues: parsed ? ruleSet.checkCitation(parsed) : [],
-    };
-  });
+  let results: CitationResult[];
+  try {
+    results = candidates.map((raw) => {
+      const parsed = parseCaseCitation(raw);
+      return {
+        raw,
+        parseFailed: parsed === null,
+        issues: parsed ? ruleSet.checkCitation(parsed) : [],
+      };
+    });
+  } catch (error) {
+    statusEl.textContent = `Something went wrong while checking citations. ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    return;
+  }
 
   const flaggedCount = results.filter((result) => result.parseFailed || result.issues.length > 0).length;
   const errorCount = results.reduce(
@@ -130,6 +138,13 @@ function init(): void {
   document.getElementById("edition-select")!.addEventListener("change", renderEditionDescription);
   document.getElementById("check-button")!.addEventListener("click", checkCitations);
   document.getElementById("file-input")!.addEventListener("change", handleFileUpload);
+  document.getElementById("citation-input")!.addEventListener("keydown", (event) => {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === "Enter" && (keyboardEvent.ctrlKey || keyboardEvent.metaKey)) {
+      keyboardEvent.preventDefault();
+      checkCitations();
+    }
+  });
 }
 
 if (document.readyState === "loading") {
