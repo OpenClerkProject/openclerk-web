@@ -1,0 +1,35 @@
+{
+  "name": "openclerk-web",
+  "version": "0.1.0",
+  "description": "A standalone, client-side-only Bluebook citation checker — paste a citation, get formatting issues back. No server, no install, built on openclerk-core.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenClerkProject/openclerk-web.git"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch",
+    "test": "jest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openclerk-core": "github:OpenClerkProject/openclerk-core#v0.1.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.23.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.4.2"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/tests/**/*.test.ts"
+    ]
+  }
+}

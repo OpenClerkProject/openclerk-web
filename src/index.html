@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClerk — Bluebook Citation Checker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #202124;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    p.subtitle {
+      color: #5f6368;
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin-top: 16px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .helper-text {
+      color: #5f6368;
+      font-size: 12px;
+      margin: 4px 0 0;
+    }
+    button.primary {
+      margin-top: 16px;
+      padding: 10px 18px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary:hover {
+      background: #1558b0;
+    }
+    #status {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #3c4043;
+    }
+    .issue-list {
+      margin-top: 12px;
+    }
+    .issue-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .issue-citation {
+      font-weight: bold;
+      margin: 0 0 4px;
+    }
+    .issue-message {
+      font-size: 13px;
+      margin: 3px 0 0;
+    }
+    .issue-clean {
+      color: #188038;
+    }
+    .issue-error {
+      color: #d93025;
+    }
+    .issue-warning {
+      color: #b06000;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #80868b;
+    }
+    footer a {
+      color: #80868b;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenClerk — Bluebook Citation Checker</h1>
+  <p class="subtitle">
+    Paste one or more case citations below. Everything runs in your browser — nothing is sent
+    anywhere.
+  </p>
+
+  <label for="edition-select">Bluebook edition</label>
+  <select id="edition-select"></select>
+  <p class="helper-text" id="edition-description"></p>
+
+  <label for="citation-input">Citation(s)</label>
+  <textarea id="citation-input" placeholder="Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"></textarea>
+
+  <button class="primary" id="check-button">Check citations</button>
+  <p id="status"></p>
+  <div class="issue-list" id="results"></div>
+
+  <footer>
+    Mechanical Bluebook checks only — not a substitute for the actual rulebook. Built on
+    <a href="https://github.com/OpenClerkProject/openclerk-core">openclerk-core</a>, the same
+    citation-checking logic shared with
+    <a href="https://github.com/OpenClerkProject/openclerk-word">OpenClerk's Word add-in</a>.
+  </footer>
+
+  <script src="bundle.js"></script>
+</body>
+</html>
