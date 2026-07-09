@@ -1,0 +1,264 @@
+import JSZip from "jszip";
+
+// editor/main.ts wires DOM elements up as soon as it's imported (same readyState-check-at-module-
+// scope pattern as main.ts), so the required markup must exist before each require() -- and each
+// test needs a fresh module graph (jest.resetModules()) so openclerk-core's citationProviderRegistry
+// (a module-level singleton) doesn't leak provider auth state between tests.
+
+function setUpDom(): void {
+  document.body.innerHTML = `
+    <input type="file" id="load-file-input" />
+    <p id="load-file-status"></p>
+    <button type="button" id="clear-document-button"></button>
+    <div id="document-surface" contenteditable="true"><p>Placeholder.</p></div>
+
+    <select id="workflow-select">
+      <option value="manage-hyperlinks">Manage Hyperlinks</option>
+      <option value="bluebook-check">Bluebook Check</option>
+      <option value="hallucination-check">Find Hallucinations</option>
+      <option value="embed-cited-text">Embed Cited Text</option>
+    </select>
+
+    <section id="manage-hyperlinks-panel" class="tab-panel active">
+      <select id="provider-select"></select>
+      <p id="provider-description"></p>
+      <div id="provider-credential-fields"></div>
+      <button type="button" id="provider-connect"></button>
+      <button type="button" id="provider-disconnect"></button>
+      <p id="provider-auth-status"></p>
+      <button type="button" id="apply-online-hyperlinks"></button>
+      <button type="button" id="remove-hyperlinks"></button>
+      <button type="button" id="scan-parentheticals"></button>
+      <div id="parenthetical-citation-list"></div>
+      <button type="button" id="add-parenthetical-hyperlinks"></button>
+      <button type="button" id="remove-parenthetical-hyperlinks"></button>
+    </section>
+
+    <section id="bluebook-check-panel" class="tab-panel">
+      <select id="bluebook-edition-select"></select>
+      <p id="bluebook-edition-description"></p>
+      <button type="button" id="check-bluebook-citations"></button>
+      <input type="checkbox" id="bluebook-show-flagged-only" />
+      <p id="bluebook-results-summary"></p>
+      <div id="bluebook-issue-list"></div>
+    </section>
+
+    <section id="hallucination-check-panel" class="tab-panel">
+      <div id="hallucination-provider-list"></div>
+      <button type="button" id="check-hallucinations"></button>
+      <div id="hallucination-results-list"></div>
+    </section>
+
+    <section id="embed-cited-text-panel" class="tab-panel">
+      <select id="embed-text-provider-select"></select>
+      <p id="embed-text-provider-status"></p>
+      <button type="button" id="embed-cited-text"></button>
+      <button type="button" id="remove-embedded-text"></button>
+      <p id="embed-text-results-summary"></p>
+      <div id="embed-text-results-list"></div>
+    </section>
+
+    <p id="status"></p>
+  `;
+}
+
+function documentSurface(): HTMLElement {
+  return document.getElementById("document-surface") as HTMLElement;
+}
+
+function setDocText(text: string): void {
+  const root = documentSurface();
+  root.innerHTML = "";
+  text.split("\n").forEach((line) => {
+    const p = document.createElement("p");
+    p.textContent = line;
+    root.appendChild(p);
+  });
+}
+
+function selectFile(inputId: string, file: File): void {
+  const input = document.getElementById(inputId) as HTMLInputElement;
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+}
+
+async function buildDocx(paragraphs: string[]): Promise<File> {
+  const zip = new JSZip();
+  const body = paragraphs.map((text) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`).join("");
+  zip.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+      `<w:body>${body}</w:body></w:document>`
+  );
+  const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
+  return new File([arrayBuffer], "brief.docx", {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+}
+
+const CITATION = "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)";
+
+// Fakes CourtListener's two endpoints (citation-lookup and opinions) well enough to exercise the
+// Online Lookup / Find Hallucinations / Embed Cited Text workflows without a real network call.
+function installCourtListenerFetchMock(options: { found?: boolean; opinionText?: string } = {}): jest.Mock {
+  const found = options.found ?? true;
+  const fetchMock = jest.fn(async (url: string) => {
+    if (url.includes("/citation-lookup/")) {
+      const body = found
+        ? [{ status: 200, citation: CITATION, clusters: [{ case_name: "Norfolk & W. Ry. Co. v. Liepelt", absolute_url: "/opinion/12345/norfolk/" }] }]
+        : [{ status: 404, clusters: [] }];
+      return { ok: true, status: 200, json: async () => body } as Response;
+    }
+    if (url.includes("/opinions/")) {
+      const body = { results: [{ plain_text: options.opinionText || "" }] };
+      return { ok: true, status: 200, json: async () => body } as Response;
+    }
+    return { ok: false, status: 404, json: async () => ({}) } as Response;
+  });
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
+describe("openclerk-web editor", () => {
+  beforeEach(() => {
+    jest.resetModules();
+    setUpDom();
+  });
+
+  it("loads a .txt file's contents into the document surface", async () => {
+    const editor = require("../src/editor/main");
+    const file = new File([CITATION], "brief.txt", { type: "text/plain" });
+    selectFile("load-file-input", file);
+
+    await editor.handleDocumentFileUpload();
+
+    expect(documentSurface().textContent).toContain(CITATION);
+    expect(document.getElementById("load-file-status")!.textContent).toMatch(/Loaded "brief\.txt"/);
+  });
+
+  it("extracts text from a .docx file's body into the document surface", async () => {
+    const editor = require("../src/editor/main");
+    const file = await buildDocx(["Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"]);
+    selectFile("load-file-input", file);
+
+    await editor.handleDocumentFileUpload();
+
+    expect(documentSurface().textContent).toContain(CITATION);
+  });
+
+  it("clears the document", () => {
+    const editor = require("../src/editor/main");
+    setDocText(CITATION);
+
+    editor.clearDocument();
+
+    expect(documentSurface().textContent.trim()).toBe("");
+  });
+
+  it("switches the visible workflow panel when the dropdown changes", () => {
+    require("../src/editor/main");
+    const select = document.getElementById("workflow-select") as HTMLSelectElement;
+
+    select.value = "bluebook-check";
+    select.dispatchEvent(new Event("change"));
+
+    expect(document.getElementById("bluebook-check-panel")!.classList.contains("active")).toBe(true);
+    expect(document.getElementById("manage-hyperlinks-panel")!.classList.contains("active")).toBe(false);
+  });
+
+  it("runs a Bluebook check against the document and renders a result", async () => {
+    const editor = require("../src/editor/main");
+    setDocText(CITATION);
+
+    await editor.checkBluebookCitations();
+
+    const results = document.getElementById("bluebook-issue-list")!;
+    expect(results.children.length).toBe(1);
+    expect(results.textContent).toContain("Norfolk & W. Ry. Co. v. Liepelt");
+    expect(document.getElementById("status")!.textContent).toMatch(/Checked 1 citation/);
+  });
+
+  it("flashes the matched citation in the document when jumping to it", async () => {
+    const editor = require("../src/editor/main");
+    setDocText(CITATION);
+    await editor.checkBluebookCitations();
+
+    editor.goToCitationInDocument(CITATION);
+
+    expect(documentSurface().querySelector("mark.oc-flash")).not.toBeNull();
+    expect(document.getElementById("status")!.textContent).toMatch(/Jumped to/);
+  });
+
+  it("scans for parenthetical citations and adds/removes a hyperlink", async () => {
+    const editor = require("../src/editor/main");
+    setDocText("See the discussion (Restatement (Second) of Torts).");
+
+    await editor.scanParentheticalCitations();
+    const list = document.getElementById("parenthetical-citation-list")!;
+    expect(list.querySelectorAll("input.url-input, input[type=text]").length).toBeGreaterThan(0);
+
+    const urlInput = list.querySelector("input") as HTMLInputElement;
+    urlInput.value = "https://example.com/restatement";
+    urlInput.dispatchEvent(new Event("input"));
+
+    await editor.addParentheticalHyperlinks();
+    const link = documentSurface().querySelector("a.oc-parenthetical-hyperlink") as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(link!.href).toBe("https://example.com/restatement");
+
+    await editor.removeParentheticalHyperlinks();
+    expect(documentSurface().querySelector("a.oc-parenthetical-hyperlink")).toBeNull();
+  });
+
+  it("applies and removes a case-law hyperlink via a connected online-lookup provider", async () => {
+    installCourtListenerFetchMock({ found: true });
+    const editor = require("../src/editor/main");
+    setDocText(CITATION);
+
+    const providerSelect = document.getElementById("provider-select") as HTMLSelectElement;
+    providerSelect.value = "courtlistener";
+    providerSelect.dispatchEvent(new Event("change"));
+
+    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    tokenInput.value = "test-token";
+    await editor.connectSelectedProvider();
+    expect(document.getElementById("provider-auth-status")!.textContent).toBe("Connected.");
+
+    await editor.applyHyperlinksViaProvider();
+    const link = documentSurface().querySelector("a.oc-case-hyperlink") as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(link!.href).toContain("/opinion/12345/norfolk/");
+
+    await editor.removeCaseLawHyperlinks();
+    expect(documentSurface().querySelector("a.oc-case-hyperlink")).toBeNull();
+  });
+
+  it("embeds cited opinion text and toggles the excerpt on click", async () => {
+    installCourtListenerFetchMock({ found: true, opinionText: "Page 490. Some opinion text. *496 More text on the pincite page." });
+    const editor = require("../src/editor/main");
+    setDocText("Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980)");
+
+    const providerSelect = document.getElementById("provider-select") as HTMLSelectElement;
+    providerSelect.value = "courtlistener";
+    providerSelect.dispatchEvent(new Event("change"));
+    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    tokenInput.value = "test-token";
+    await editor.connectSelectedProvider();
+
+    const embedSelect = document.getElementById("embed-text-provider-select") as HTMLSelectElement;
+    embedSelect.value = "courtlistener";
+    embedSelect.dispatchEvent(new Event("change"));
+
+    await editor.embedCitedOpinionText();
+    const note = documentSurface().querySelector("mark.oc-embed-note") as HTMLElement | null;
+    expect(note).not.toBeNull();
+    expect(documentSurface().querySelector(".oc-embed-excerpt")).toBeNull();
+
+    note!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(documentSurface().querySelector(".oc-embed-excerpt")).not.toBeNull();
+
+    await editor.removeEmbeddedCitationText();
+    expect(documentSurface().querySelector("mark.oc-embed-note")).toBeNull();
+    expect(documentSurface().querySelector(".oc-embed-excerpt")).toBeNull();
+  });
+});
