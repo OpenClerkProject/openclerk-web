@@ -1,4 +1,5 @@
 import { bluebookRuleSetRegistry, extractCaseCitations, parseCaseCitation, BluebookIssue } from "openclerk-core";
+import { extractTextFromFile } from "./fileText";
 
 interface CitationResult {
   raw: string;
@@ -70,6 +71,29 @@ function checkCitations(): void {
   results.forEach((result) => resultsEl.appendChild(renderResult(result)));
 }
 
+async function handleFileUpload(): Promise<void> {
+  const fileInput = document.getElementById("file-input") as HTMLInputElement;
+  const fileStatusEl = document.getElementById("file-status")!;
+  const textarea = document.getElementById("citation-input") as HTMLTextAreaElement;
+  const file = fileInput.files && fileInput.files[0];
+
+  if (!file) {
+    return;
+  }
+
+  fileStatusEl.textContent = `Reading "${file.name}"...`;
+
+  try {
+    const text = await extractTextFromFile(file);
+    textarea.value = text;
+    fileStatusEl.textContent = `Loaded "${file.name}" (${text.length.toLocaleString()} characters). Click "Check citations" to scan it.`;
+  } catch (error) {
+    fileStatusEl.textContent = error instanceof Error ? error.message : String(error);
+  } finally {
+    fileInput.value = "";
+  }
+}
+
 function renderResult(result: CitationResult): HTMLElement {
   const item = document.createElement("div");
   item.className = "issue-item";
@@ -105,6 +129,7 @@ function init(): void {
   populateEditions();
   document.getElementById("edition-select")!.addEventListener("change", renderEditionDescription);
   document.getElementById("check-button")!.addEventListener("click", checkCitations);
+  document.getElementById("file-input")!.addEventListener("change", handleFileUpload);
 }
 
 if (document.readyState === "loading") {
@@ -113,4 +138,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, checkCitations, populateEditions };
+export { init, checkCitations, populateEditions, handleFileUpload };

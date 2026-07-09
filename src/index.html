@@ -102,8 +102,8 @@
 <body>
   <h1>OpenClerk — Bluebook Citation Checker</h1>
   <p class="subtitle">
-    Paste one or more case citations below. Everything runs in your browser — nothing is sent
-    anywhere.
+    Paste one or more case citations, or upload a file, below. Everything runs in your browser —
+    nothing is sent anywhere.
   </p>
 
   <label for="edition-select">Bluebook edition</label>
@@ -112,6 +112,10 @@
 
   <label for="citation-input">Citation(s)</label>
   <textarea id="citation-input" placeholder="Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"></textarea>
+
+  <label for="file-input">Or upload a file (.txt or .docx)</label>
+  <input type="file" id="file-input" accept=".txt,.docx" />
+  <p class="helper-text" id="file-status"></p>
 
   <button class="primary" id="check-button">Check citations</button>
   <p id="status"></p>

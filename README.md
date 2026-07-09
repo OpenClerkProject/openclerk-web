@@ -1,17 +1,27 @@
 # openclerk-web
 
-A standalone, client-side-only Bluebook citation checker. Paste one or more case citations, pick
-an edition, and get formatting issues back — no server, no account, no install for end users.
-Built on [openclerk-core](https://github.com/OpenClerkProject/openclerk-core), the same
-citation-parsing and Bluebook rule-checking logic shared with
+A standalone, client-side-only Bluebook citation checker. Paste one or more case citations (or
+upload a `.txt`/`.docx` file), pick an edition, and get formatting issues back — no server, no
+account, no install for end users. Built on
+[openclerk-core](https://github.com/OpenClerkProject/openclerk-core), the same citation-parsing
+and Bluebook rule-checking logic shared with
 [OpenClerk's Word add-in](https://github.com/OpenClerkProject/openclerk-word) and
 [Google Docs add-on](https://github.com/OpenClerkProject/openclerk-gdocs).
+
+Uploaded files never leave the browser — `.txt` is read directly, and `.docx` is unzipped and its
+body text extracted client-side (`src/docxText.ts`, the same OOXML-parsing approach
+`openclerk-word` uses for its own `.docx` handling), reusing the same `extractCaseCitations` /
+`checkCitation` pipeline as pasted text.
 
 ## Scope
 
 Only Bluebook Check is implemented here — there's no document to scan, so there's nothing to
 hyperlink or navigate to, and no Online Lookup (that needs a lookup provider's API and
 credentials, which doesn't fit a "paste text, get an answer, nothing leaves your browser" tool).
+
+File upload supports `.txt` and `.docx` only — no PDF. PDF text extraction needs a much heavier
+client-side dependency (`pdf.js`, ~1MB+ with a web worker) and is unreliable for scanned/image
+PDFs in the first place, so it was deliberately left out rather than half-implemented.
 
 ## Architecture
 
