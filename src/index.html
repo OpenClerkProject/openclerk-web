@@ -92,10 +92,10 @@
     footer {
       margin-top: 40px;
       font-size: 12px;
-      color: #80868b;
+      color: #5f6368;
     }
     footer a {
-      color: #80868b;
+      color: #5f6368;
     }
   </style>
 </head>
@@ -112,14 +112,15 @@
 
   <label for="citation-input">Citation(s)</label>
   <textarea id="citation-input" placeholder="Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"></textarea>
+  <p class="helper-text">Press Ctrl+Enter (Cmd+Enter on Mac) to check citations without leaving the textarea.</p>
 
   <label for="file-input">Or upload a file (.txt or .docx)</label>
   <input type="file" id="file-input" accept=".txt,.docx" />
-  <p class="helper-text" id="file-status"></p>
+  <p class="helper-text" id="file-status" aria-live="polite"></p>
 
   <button class="primary" id="check-button">Check citations</button>
-  <p id="status"></p>
-  <div class="issue-list" id="results"></div>
+  <p id="status" aria-live="polite"></p>
+  <div class="issue-list" id="results" aria-live="polite"></div>
 
   <footer>
     Mechanical Bluebook checks only — not a substitute for the actual rulebook. Built on
