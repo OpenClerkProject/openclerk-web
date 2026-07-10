@@ -102,7 +102,7 @@ either allowlist it deliberately (`npm config set allow-scripts openclerk-core` 
 manually and drop the output into `node_modules/openclerk-core` yourself:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/OpenClerkProject/openclerk-core.git /tmp/openclerk-core-build
+git clone --branch v0.2.0 https://github.com/OpenClerkProject/openclerk-core.git /tmp/openclerk-core-build
 cd /tmp/openclerk-core-build && npm install --ignore-scripts && npx tsc
 ```
 
