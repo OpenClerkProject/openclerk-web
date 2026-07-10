@@ -33,15 +33,33 @@ function normalizeExtractedText(text: string): string {
     .trim();
 }
 
-async function ocrPage(page: pdfjsLib.PDFPageProxy, onProgress?: (message: string) => void): Promise<string> {
+type TesseractWorker = Awaited<ReturnType<Awaited<typeof import("tesseract.js")>["createWorker"]>>;
+
+async function createOcrWorker(onProgress?: (message: string) => void): Promise<TesseractWorker> {
   // Imported dynamically (rather than a top-level import) so the actual worker/WASM-core/
   // language-model fetches tesseract.js makes only happen once OCR genuinely runs, not on every
   // page load -- this page's esbuild config bundles tesseract.js's own JS into pdf-bundle.js
   // either way (no code-splitting for a plain IIFE bundle), but constructing a worker is what
   // actually triggers its network fetches, and a document with an embedded text layer on every
   // page should never trigger them at all.
+  //
+  // Deliberately left on tesseract.js's default CDN-hosted worker/core/language-model files
+  // rather than vendoring them: the binary WASM core and per-language trained-data files are
+  // several MB each, and unlike the rest of this project's "nothing ever leaves the browser"
+  // pages, this specific page already has to fetch something to do OCR at all. The PDF's own
+  // content is still never uploaded anywhere -- only a generic, page-content-independent language
+  // model is fetched, once, and cached by the browser after that.
   const { createWorker } = await import("tesseract.js");
+  return createWorker("eng", 1, {
+    logger: (message) => {
+      if (message.status === "recognizing text") {
+        onProgress?.(`Running OCR... ${Math.round(message.progress * 100)}%`);
+      }
+    },
+  });
+}
 
+async function ocrPage(page: pdfjsLib.PDFPageProxy, worker: TesseractWorker): Promise<string> {
   const viewport = page.getViewport({ scale: 2 });
   const canvas = document.createElement("canvas");
   canvas.width = viewport.width;
@@ -49,27 +67,10 @@ async function ocrPage(page: pdfjsLib.PDFPageProxy, onProgress?: (message: strin
   const context = canvas.getContext("2d")!;
   await page.render({ canvasContext: context, viewport }).promise;
 
-  // Deliberately left on tesseract.js's default CDN-hosted worker/core/language-model files
-  // rather than vendoring them: the binary WASM core and per-language trained-data files are
-  // several MB each, and unlike the rest of this project's "nothing ever leaves the browser"
-  // pages, this specific page already has to fetch something to do OCR at all. The PDF's own
-  // content is still never uploaded anywhere -- only a generic, page-content-independent language
-  // model is fetched, once, and cached by the browser after that.
-  const worker = await createWorker("eng", 1, {
-    logger: (message) => {
-      if (message.status === "recognizing text") {
-        onProgress?.(`Running OCR... ${Math.round(message.progress * 100)}%`);
-      }
-    },
-  });
-  try {
-    const {
-      data: { text },
-    } = await worker.recognize(canvas);
-    return text;
-  } finally {
-    await worker.terminate();
-  }
+  const {
+    data: { text },
+  } = await worker.recognize(canvas);
+  return text;
 }
 
 /**
@@ -85,25 +86,31 @@ export async function extractPdfText(file: File, options: ExtractPdfTextOptions 
   const doc = await pdfjsLib.getDocument({ data }).promise;
   const pages: PageExtraction[] = [];
 
-  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
-    options.onProgress?.(`Reading page ${pageNumber} of ${doc.numPages}...`);
-    const page = await doc.getPage(pageNumber);
-    const content = await page.getTextContent();
-    const embeddedText = normalizeExtractedText(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+  let ocrWorker: TesseractWorker | null = null;
+  try {
+    for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
+      options.onProgress?.(`Reading page ${pageNumber} of ${doc.numPages}...`);
+      const page = await doc.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const embeddedText = normalizeExtractedText(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
 
-    if (embeddedText.replace(/\s/g, "").length >= MIN_EMBEDDED_TEXT_LENGTH) {
-      pages.push({ pageNumber, text: embeddedText, source: "embedded" });
-      continue;
+      if (embeddedText.replace(/\s/g, "").length >= MIN_EMBEDDED_TEXT_LENGTH) {
+        pages.push({ pageNumber, text: embeddedText, source: "embedded" });
+        continue;
+      }
+
+      if (!ocrEnabled) {
+        pages.push({ pageNumber, text: embeddedText, source: embeddedText ? "embedded" : "empty" });
+        continue;
+      }
+
+      options.onProgress?.(`Page ${pageNumber}: no embedded text layer, running OCR (this can take a while)...`);
+      ocrWorker ??= await createOcrWorker(options.onProgress);
+      const ocrText = normalizeExtractedText(await ocrPage(page, ocrWorker));
+      pages.push({ pageNumber, text: ocrText, source: "ocr" });
     }
-
-    if (!ocrEnabled) {
-      pages.push({ pageNumber, text: embeddedText, source: embeddedText ? "embedded" : "empty" });
-      continue;
-    }
-
-    options.onProgress?.(`Page ${pageNumber}: no embedded text layer, running OCR (this can take a while)...`);
-    const ocrText = normalizeExtractedText(await ocrPage(page, options.onProgress));
-    pages.push({ pageNumber, text: ocrText, source: "ocr" });
+  } finally {
+    await ocrWorker?.terminate();
   }
 
   return pages;
