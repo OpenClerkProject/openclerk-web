@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "jszip": "^3.10.1",
-    "openclerk-core": "github:OpenClerkProject/openclerk-core#v0.1.0"
+    "openclerk-core": "github:OpenClerkProject/openclerk-core#feature/eyecite-citation-clustering",
+    "pdfjs-dist": "^4.6.82",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",

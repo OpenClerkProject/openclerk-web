@@ -11,29 +11,70 @@ and Bluebook rule-checking logic shared with
 Uploaded files never leave the browser — `.txt` is read directly, and `.docx` is unzipped and its
 body text extracted client-side (`src/docxText.ts`, the same OOXML-parsing approach
 `openclerk-word` uses for its own `.docx` handling), reusing the same `extractCaseCitations` /
-`checkCitation` pipeline as pasted text.
+`checkCitation` pipeline as pasted text. Have a PDF instead? See **PDF & OCR Tools** below — it's
+a separate page so the main checker stays small and fast.
 
 ## Scope
 
-Only Bluebook Check is implemented here — there's no document to scan, so there's nothing to
-hyperlink or navigate to, and no Online Lookup (that needs a lookup provider's API and
-credentials, which doesn't fit a "paste text, get an answer, nothing leaves your browser" tool).
+The Citation Checker page (`index.html`) only does Bluebook Check — there's no document to scan,
+so there's nothing to hyperlink or navigate to, and no Online Lookup (that needs a lookup
+provider's API and credentials, which doesn't fit a "paste text, get an answer, nothing leaves
+your browser" tool). Its own file upload supports `.txt` and `.docx` only — no PDF, deliberately:
+see the PDF & OCR Tools page below for why PDF support lives there instead of here.
 
-File upload supports `.txt` and `.docx` only — no PDF. PDF text extraction needs a much heavier
-client-side dependency (`pdf.js`, ~1MB+ with a web worker) and is unreliable for scanned/image
-PDFs in the first place, so it was deliberately left out rather than half-implemented.
+## PDF & OCR Tools (`pdf.html`)
+
+A separate page (own HTML file, own bundle) for uploading a PDF: it extracts text via
+[pdf.js](https://mozilla.github.io/pdf.js/)'s embedded text layer, falling back to
+[tesseract.js](https://github.com/naptha/tesseract.js) OCR for any page with no usable text layer
+(a scanned/image-only page), then runs `openclerk-core`'s citation engine over the result --
+full, short-form, `Id.`, and `supra` citations, clustered by case -- and optionally checks each
+one against CourtListener to flag citations that don't resolve as possible hallucinations.
+
+**Why a separate page, not a feature of the Citation Checker:** pdf.js and tesseract.js together
+are several MB, and only someone who actually has a PDF needs them. Splitting this into its own
+HTML file + bundle (`pdf-bundle.js`, built alongside `bundle.js`/`editor-bundle.js` by the same
+`scripts/build.js`) means visitors to the other two pages never download that weight.
+
+**Why this exists at all, when an earlier version of this README said PDF support was left out:**
+that reasoning (pdf.js is heavy; OCR is unreliable for scanned PDFs) turned out to not hold up --
+OCR via tesseract.js recovers scanned text just fine in practice, verified against a real,
+publicly filed scanned document (see below), and "heavy" is solved by not shipping that weight to
+every page, not by leaving the feature out.
+
+**What never leaves the browser, and what does:** the PDF itself is parsed entirely client-side
+and never uploaded anywhere. If OCR is needed for a page (no embedded text layer), tesseract.js
+fetches its worker script, WASM core, and English language-model file from its default CDN host
+the first time OCR runs in your browser -- that's a generic, page-content-independent file, not
+anything from your document, and it's cached by the browser afterward. Checking citations against
+CourtListener (opt-in, via the page's checkbox) sends only the matched citation strings, same as
+the Citation Checker and Document Editor pages' own lookups -- never the document text.
+
+**Verified against a real scanned filing:** [tests/fixtures/mata-v-avianca-filing.pdf](tests/fixtures/mata-v-avianca-filing.pdf)
+is the affirmation in opposition from *Mata v. Avianca, Inc.*, No. 1:22-cv-01461-PKC (S.D.N.Y.) --
+the filing at the center of the widely reported incident in which counsel submitted
+ChatGPT-fabricated case citations to a federal court. Its pages have no embedded text layer at all
+(only the CM/ECF header stamp does), so running it through this page's OCR path is a real
+round-trip, not just text-layer extraction, and correctly recovers and flags both fabricated
+citations (*Peterson v. Iran Air*, *Martinez v. Delta Airlines, Inc.*) as unresolved when checked
+against CourtListener. `tests/pdf.test.ts` covers the citation-extraction and CourtListener-
+verification wiring with `./pdfText`'s `extractPdfText` mocked (jsdom has no real `<canvas>`,
+`Worker`, or WASM support to actually run pdf.js/tesseract.js) -- the OCR path itself was verified
+manually, in a real browser, against that fixture.
 
 ## Architecture
 
-- Plain static HTML + a single bundled JS file (`src/index.html` + `src/main.ts` → `dist/`) — no
-  framework, no routing, nothing beyond what's needed to wire a textarea and a button to
-  `openclerk-core`'s `extractCaseCitations` / `parseCaseCitation` / `bluebookRuleSetRegistry`.
+- Plain static HTML + a single bundled JS file per page (`src/index.html` + `src/main.ts`,
+  `src/editor.html` + `src/editor/main.ts`, `src/pdf.html` + `src/pdf/main.ts` → `dist/`) — no
+  framework, no routing, nothing beyond what's needed to wire each page's DOM to
+  `openclerk-core`.
 - Unlike `openclerk-gdocs`, no shims are needed: a real browser already provides `fetch` and
-  `URLSearchParams` natively, which is all `openclerk-core` needs (and this tool doesn't even use
-  `fetch`, since Bluebook checking makes no network calls at all).
-- `scripts/build.js` uses esbuild to bundle `src/main.ts` (which pulls in `openclerk-core`) into
-  `dist/bundle.js`, and copies `src/index.html` alongside it. That `dist/` folder is the entire
-  deployable artifact — open `dist/index.html` directly in a browser, no server required.
+  `URLSearchParams` natively, which is all `openclerk-core` needs.
+- `scripts/build.js` uses esbuild to bundle each page's entry point independently (so, e.g., a
+  Citation Checker visitor never downloads the Document Editor's or PDF & OCR Tools' code), and
+  copies each page's HTML plus pdf.js's worker script alongside the bundles. That `dist/` folder
+  is the entire deployable artifact — open `dist/index.html` directly in a browser, or serve the
+  whole folder, no server-side logic required.
 - Deployed to GitHub Pages via `.github/workflows/deploy-pages.yml` on every push to `main`.
 
 ## Development

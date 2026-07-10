@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClerk — PDF &amp; OCR Tools</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #202124;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    p.subtitle {
+      color: #5f6368;
+      margin-top: 0;
+    }
+    nav.page-nav {
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    nav.page-nav a {
+      color: #1a73e8;
+    }
+    label {
+      display: block;
+      margin-top: 16px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    input[type="file"],
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .helper-text {
+      color: #5f6368;
+      font-size: 12px;
+      margin: 4px 0 0;
+      line-height: 1.4;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .checkbox-label input {
+      width: auto;
+    }
+    button.primary {
+      margin-top: 16px;
+      padding: 10px 18px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary:hover {
+      background: #1558b0;
+    }
+    #status,
+    #page-summary {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #3c4043;
+    }
+    .issue-list {
+      margin-top: 12px;
+    }
+    .issue-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .issue-citation {
+      font-weight: bold;
+      margin: 0 0 4px;
+    }
+    .issue-message {
+      font-size: 13px;
+      margin: 3px 0 0;
+    }
+    .issue-clean {
+      color: #188038;
+    }
+    .issue-error {
+      color: #d93025;
+    }
+    .issue-warning {
+      color: #b06000;
+    }
+    .disclaimer-banner {
+      margin-top: 16px;
+      padding: 8px 12px;
+      background: #fff4e0;
+      border: 1px solid #d9a441;
+      border-radius: 6px;
+      color: #5f4515;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #5f6368;
+    }
+    footer a {
+      color: #5f6368;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenClerk — PDF &amp; OCR Tools</h1>
+  <p class="subtitle">
+    Upload a PDF to extract its text (falling back to OCR for scanned pages with no embedded text
+    layer) and scan the result for case citations.
+  </p>
+  <nav class="page-nav">
+    <a href="index.html">← Citation Checker</a> &middot; <a href="editor.html">Document Editor</a>
+  </nav>
+
+  <p class="disclaimer-banner" role="note">
+    This page is a separate bundle from the rest of OpenClerk because it loads <strong>pdf.js</strong>
+    and <strong>tesseract.js</strong> -- together several MB -- so visitors to the lightweight
+    Citation Checker and Document Editor pages never pay that cost. The PDF you upload is parsed
+    entirely in your browser and never leaves it; OCR (only run on pages with no embedded text)
+    does fetch a generic, page-content-independent language model from tesseract.js's default host
+    the first time it's used, since vendoring that multi-MB file wasn't worth it for this page alone.
+  </p>
+
+  <label for="pdf-input">PDF file</label>
+  <input type="file" id="pdf-input" accept="application/pdf" />
+
+  <label class="checkbox-label" for="verify-checkbox" style="margin-top:20px;">
+    <input type="checkbox" id="verify-checkbox" />
+    Check citations against CourtListener and flag any that don't resolve
+  </label>
+  <input type="text" id="courtlistener-token" placeholder="CourtListener API token (required to verify)" />
+  <p class="helper-text">
+    Free token from <a href="https://www.courtlistener.com/profile/api-token/" target="_blank" rel="noopener noreferrer">courtlistener.com/profile/api-token</a>.
+    Only the matched citation strings are sent, never the document text.
+  </p>
+
+  <button class="primary" id="extract-button">Extract &amp; check citations</button>
+
+  <p id="page-summary"></p>
+  <p id="status" aria-live="polite"></p>
+  <div class="issue-list" id="results" aria-live="polite"></div>
+
+  <footer>
+    Citation extraction only -- not a substitute for independently verifying every citation. Built
+    on <a href="https://github.com/OpenClerkProject/openclerk-core">openclerk-core</a>.
+  </footer>
+
+  <script src="pdf-bundle.js"></script>
+</body>
+</html>
