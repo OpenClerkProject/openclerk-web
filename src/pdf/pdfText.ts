@@ -1,4 +1,5 @@
 import * as pdfjsLib from "pdfjs-dist";
+import type { createWorker as TesseractCreateWorker } from "tesseract.js";
 
 // pdf.js needs a worker script; pdf.worker.min.mjs is copied alongside the bundle at build time
 // (see scripts/build.js) so this works without a bundler-specific worker-loading integration.
@@ -33,7 +34,7 @@ function normalizeExtractedText(text: string): string {
     .trim();
 }
 
-type TesseractWorker = Awaited<ReturnType<Awaited<typeof import("tesseract.js")>["createWorker"]>>;
+type TesseractWorker = Awaited<ReturnType<typeof TesseractCreateWorker>>;
 
 async function createOcrWorker(onProgress?: (message: string) => void): Promise<TesseractWorker> {
   // Imported dynamically (rather than a top-level import) so the actual worker/WASM-core/
