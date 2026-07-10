@@ -1,0 +1,143 @@
+import {
+  clusterCitationTokens,
+  extractCitationTokens,
+  findOrphanedCitations,
+  checkCitationsForHallucinations,
+  citationProviderRegistry,
+  CitationCluster,
+} from "openclerk-core";
+import { extractPdfText, PageExtraction } from "./pdfText";
+
+interface CitationReportEntry {
+  cluster: CitationCluster;
+  verifiedVia?: string | null;
+}
+
+function setStatus(message: string): void {
+  document.getElementById("status")!.textContent = message;
+}
+
+function renderPages(pages: PageExtraction[]): void {
+  const container = document.getElementById("page-summary")!;
+  container.textContent = `Extracted ${pages.length} page(s): ${pages.filter((p) => p.source === "embedded").length} from the embedded text layer, ${
+    pages.filter((p) => p.source === "ocr").length
+  } via OCR, ${pages.filter((p) => p.source === "empty").length} empty.`;
+}
+
+function renderCitations(entries: CitationReportEntry[], orphanCount: number): void {
+  const container = document.getElementById("results")!;
+  container.innerHTML = "";
+
+  if (entries.length === 0) {
+    container.textContent = "No case citations were found in the extracted text.";
+  }
+
+  entries.forEach(({ cluster, verifiedVia }) => {
+    const item = document.createElement("div");
+    item.className = "issue-item";
+
+    const citationEl = document.createElement("p");
+    citationEl.className = "issue-citation";
+    citationEl.textContent = cluster.leadCitation;
+    item.appendChild(citationEl);
+
+    const shortFormCount = cluster.tokens.length - 1;
+    if (shortFormCount > 0) {
+      const p = document.createElement("p");
+      p.className = "issue-message";
+      p.textContent = `+${shortFormCount} short-form/Id. reference(s) to this case.`;
+      item.appendChild(p);
+    }
+
+    if (verifiedVia !== undefined) {
+      const p = document.createElement("p");
+      p.className = "issue-message " + (verifiedVia ? "issue-clean" : "issue-error");
+      p.textContent = verifiedVia
+        ? `Verified via ${verifiedVia}.`
+        : "Not found by any checked provider -- possible hallucination.";
+      item.appendChild(p);
+    }
+
+    container.appendChild(item);
+  });
+
+  if (orphanCount > 0) {
+    const note = document.createElement("p");
+    note.className = "issue-message issue-warning";
+    note.textContent = `${orphanCount} short-form/Id./supra citation(s) had no resolvable antecedent in the extracted text.`;
+    container.appendChild(note);
+  }
+}
+
+async function runExtraction(): Promise<void> {
+  const fileInput = document.getElementById("pdf-input") as HTMLInputElement;
+  const verifyCheckbox = document.getElementById("verify-checkbox") as HTMLInputElement;
+  const tokenInput = document.getElementById("courtlistener-token") as HTMLInputElement;
+  const file = fileInput.files && fileInput.files[0];
+
+  if (!file) {
+    setStatus("Choose a PDF file first.");
+    return;
+  }
+
+  document.getElementById("page-summary")!.textContent = "";
+  document.getElementById("results")!.innerHTML = "";
+  setStatus("Reading PDF...");
+
+  let pages: PageExtraction[];
+  try {
+    pages = await extractPdfText(file, { onProgress: setStatus });
+  } catch (error) {
+    setStatus(`Could not read this file as a PDF. ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  renderPages(pages);
+  const fullText = pages.map((page) => page.text).join("\n\n");
+  const clusters = clusterCitationTokens(extractCitationTokens(fullText));
+  const orphaned = findOrphanedCitations(fullText);
+
+  if (clusters.length === 0) {
+    setStatus("No case citations were found in the extracted text.");
+    renderCitations([], orphaned.length);
+    return;
+  }
+
+  const verify = verifyCheckbox.checked && tokenInput.value.trim().length > 0;
+  let entries: CitationReportEntry[] = clusters.map((cluster) => ({ cluster }));
+
+  if (verify) {
+    setStatus("Checking citations against CourtListener...");
+    const provider = citationProviderRegistry.get("courtlistener")!;
+    try {
+      await provider.authenticate({ apiToken: tokenInput.value.trim() });
+      const leadCitations = clusters.map((cluster) => cluster.leadCitation);
+      const results = await checkCitationsForHallucinations(leadCitations, [provider]);
+      entries = clusters.map((cluster, index) => ({ cluster, verifiedVia: results[index].verifiedVia }));
+    } catch (error) {
+      setStatus(`Could not verify against CourtListener. ${error instanceof Error ? error.message : String(error)}`);
+      renderCitations(entries, orphaned.length);
+      return;
+    }
+  }
+
+  const flaggedCount = entries.filter((entry) => entry.verifiedVia === null).length;
+  setStatus(
+    verify
+      ? `Found ${clusters.length} case citation(s); ${flaggedCount} could not be verified via CourtListener.`
+      : `Found ${clusters.length} case citation(s).`
+  );
+  renderCitations(entries, orphaned.length);
+}
+
+function init(): void {
+  document.getElementById("extract-button")!.addEventListener("click", runExtraction);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+export { init, runExtraction };
