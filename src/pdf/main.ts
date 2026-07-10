@@ -31,7 +31,6 @@ function renderCitations(entries: CitationReportEntry[], orphanCount: number): v
 
   if (entries.length === 0) {
     container.textContent = "No case citations were found in the extracted text.";
-    return;
   }
 
   entries.forEach(({ cluster, verifiedVia }) => {
