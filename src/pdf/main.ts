@@ -1,5 +1,4 @@
 import {
-  extractCaseCitations,
   clusterCitationTokens,
   extractCitationTokens,
   findOrphanedCitations,
@@ -95,11 +94,10 @@ async function runExtraction(): Promise<void> {
 
   renderPages(pages);
   const fullText = pages.map((page) => page.text).join("\n\n");
-  const citations = extractCaseCitations(fullText);
   const clusters = clusterCitationTokens(extractCitationTokens(fullText));
   const orphaned = findOrphanedCitations(fullText);
 
-  if (citations.length === 0) {
+  if (clusters.length === 0) {
     setStatus("No case citations were found in the extracted text.");
     renderCitations([], orphaned.length);
     return;
