@@ -50,17 +50,21 @@ anything from your document, and it's cached by the browser afterward. Checking 
 CourtListener (opt-in, via the page's checkbox) sends only the matched citation strings, same as
 the Citation Checker and Document Editor pages' own lookups -- never the document text.
 
-**Verified against a real scanned filing:** [tests/fixtures/mata-v-avianca-filing.pdf](tests/fixtures/mata-v-avianca-filing.pdf)
+**Tested against a real scanned filing:** [tests/fixtures/mata-v-avianca-filing.pdf](tests/fixtures/mata-v-avianca-filing.pdf)
 is the affirmation in opposition from *Mata v. Avianca, Inc.*, No. 1:22-cv-01461-PKC (S.D.N.Y.) --
 the filing at the center of the widely reported incident in which counsel submitted
 ChatGPT-fabricated case citations to a federal court. Its pages have no embedded text layer at all
-(only the CM/ECF header stamp does), so running it through this page's OCR path is a real
-round-trip, not just text-layer extraction, and correctly recovers and flags both fabricated
-citations (*Peterson v. Iran Air*, *Martinez v. Delta Airlines, Inc.*) as unresolved when checked
-against CourtListener. `tests/pdf.test.ts` covers the citation-extraction and CourtListener-
+(only the CM/ECF header stamp does), so it's a genuine test of the OCR fallback, not just
+text-layer extraction. `tests/pdf.test.ts` covers the citation-extraction and CourtListener-
 verification wiring with `./pdfText`'s `extractPdfText` mocked (jsdom has no real `<canvas>`,
-`Worker`, or WASM support to actually run pdf.js/tesseract.js) -- the OCR path itself was verified
-manually, in a real browser, against that fixture.
+`Worker`, or WASM support to actually run pdf.js/tesseract.js). The underlying extraction
+*algorithm* -- pdf.js text-layer extraction falling back to tesseract.js OCR -- was confirmed
+end-to-end against this exact file via a separate Node CLI (pdfjs-dist's Node build +
+@napi-rs/canvas), correctly recovering and flagging both fabricated citations (*Peterson v. Iran
+Air*, *Martinez v. Delta Airlines, Inc.*). **This browser page's own code path has not yet been
+manually smoke-tested in an actual browser** -- do that against the fixture above before relying
+on it, since browser-specific concerns (the vendored worker file path, tesseract.js's CDN asset
+fetch, real `<canvas>` rendering) differ from the Node CLI's.
 
 ## Architecture
 
