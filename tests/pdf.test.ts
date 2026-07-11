@@ -45,12 +45,18 @@ In Martinez v. Delta Airlines, Inc., 2019 WL 4639462 (Tex. App. Sept. 25, 2019),
 brought a negligence claim against Delta Airlines in Texas state court.
 `;
 
+// Returns the actual matched case name in the mocked response (not a placeholder) -- CourtListener
+// resolves by citation locator and returns its own real case name for whatever it finds there, and
+// checkCitationsForHallucinations only treats a match as verified when that name corresponds to the
+// citation's own parsed name (see caseNamesMatch in openclerk-core). A mock that always returned a
+// fixed placeholder name regardless of which citation was being checked would silently stop
+// exercising that check.
 function installCourtListenerFetchMock(knownCaseNames: string[]): jest.Mock {
   const fetchMock = jest.fn(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
-    const found = knownCaseNames.some((name) => body.includes(encodeURIComponent(name).replace(/%20/g, "+")));
-    const responseBody = found
-      ? [{ status: 200, citation: "match", clusters: [{ case_name: "match", absolute_url: "/opinion/1/x/" }] }]
+    const matchedName = knownCaseNames.find((name) => body.includes(encodeURIComponent(name).replace(/%20/g, "+")));
+    const responseBody = matchedName
+      ? [{ status: 200, citation: matchedName, clusters: [{ case_name: matchedName, absolute_url: "/opinion/1/x/" }] }]
       : [{ status: 404, clusters: [] }];
     return { ok: true, status: 200, json: async () => responseBody } as Response;
   });
@@ -93,6 +99,39 @@ describe("openclerk-web PDF & OCR tools page", () => {
     expect(resultsText).toMatch(/Peterson v\. Iran Air[\s\S]*possible hallucination/);
     expect(resultsText).toMatch(/Martinez v\. Delta Airlines, Inc\.[\s\S]*possible hallucination/);
     expect(resultsText).toMatch(/Ehrlich v\. American Airlines, Inc\.[\s\S]*Verified via/);
+  });
+
+  // Regression test for a real production bug: this page showed "Verified via CourtListener" for
+  // "Peterson v. Iran Air, 905 F. Supp. 2d 121 (D.D.C. 2012)" -- one of the two ChatGPT-fabricated
+  // citations from this exact filing -- because CourtListener's citation-lookup API resolves by
+  // locator (reporter/volume/page), not by case name, and this page wasn't checking that the
+  // returned case name actually matched. Fixed in openclerk-core's checkCitationsForHallucinations
+  // (caseNamesMatch); this confirms the fix is actually wired up on this page, not just in core's
+  // own test suite.
+  it("does not verify a fabricated case name when its citation locator resolves to a real, different case", async () => {
+    mockExtractPdfText.mockResolvedValue([{ pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" }]);
+    const fetchMock = jest.fn(async () => {
+      const responseBody = [
+        {
+          status: 200,
+          citation: "match",
+          clusters: [{ case_name: "Peterson v. Islamic Republic of Iran", absolute_url: "/opinion/1/x/" }],
+        },
+      ];
+      return { ok: true, status: 200, json: async () => responseBody } as Response;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { runExtraction } = require("../src/pdf/main");
+    selectFile(new File(["dummy"], "filing.pdf", { type: "application/pdf" }));
+    (document.getElementById("verify-checkbox") as HTMLInputElement).checked = true;
+    (document.getElementById("courtlistener-token") as HTMLInputElement).value = "test-token";
+    await runExtraction();
+
+    const resultsText = document.getElementById("results")!.textContent || "";
+    expect(resultsText).not.toMatch(/Peterson v\. Iran Air[\s\S]*Verified via/);
+    expect(resultsText).toMatch(/Peterson v\. Iran Air[\s\S]*resolves this citation to a different case/);
+    expect(resultsText).toMatch(/Islamic Republic of Iran/);
   });
 
   it("shows a message when no file is chosen", async () => {
