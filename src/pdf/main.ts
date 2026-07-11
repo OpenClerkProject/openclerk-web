@@ -11,6 +11,7 @@ import { extractPdfText, PageExtraction } from "./pdfText";
 interface CitationReportEntry {
   cluster: CitationCluster;
   verifiedVia?: string | null;
+  nameMismatch?: { provider: string; foundCaseName: string };
 }
 
 function setStatus(message: string): void {
@@ -32,7 +33,7 @@ function renderCitations(entries: CitationReportEntry[], orphanCount: number): v
     container.textContent = "No case citations were found in the extracted text.";
   }
 
-  entries.forEach(({ cluster, verifiedVia }) => {
+  entries.forEach(({ cluster, verifiedVia, nameMismatch }) => {
     const item = document.createElement("div");
     item.className = "issue-item";
 
@@ -51,10 +52,18 @@ function renderCitations(entries: CitationReportEntry[], orphanCount: number): v
 
     if (verifiedVia !== undefined) {
       const p = document.createElement("p");
-      p.className = "issue-message " + (verifiedVia ? "issue-clean" : "issue-error");
-      p.textContent = verifiedVia
-        ? `Verified via ${verifiedVia}.`
-        : "Not found by any checked provider -- possible hallucination.";
+      if (verifiedVia) {
+        p.className = "issue-message issue-clean";
+        p.textContent = `Verified via ${verifiedVia}.`;
+      } else if (nameMismatch) {
+        // A stronger fabrication signal than a plain miss: the citation's locator
+        // (reporter/volume/page) is real, but belongs to a different case than the one named here.
+        p.className = "issue-message issue-error";
+        p.textContent = `Possible hallucination -- ${nameMismatch.provider} resolves this citation to a different case: "${nameMismatch.foundCaseName}".`;
+      } else {
+        p.className = "issue-message issue-error";
+        p.textContent = "Not found by any checked provider -- possible hallucination.";
+      }
       item.appendChild(p);
     }
 
@@ -113,7 +122,11 @@ async function runExtraction(): Promise<void> {
       await provider.authenticate({ apiToken: tokenInput.value.trim() });
       const leadCitations = clusters.map((cluster) => cluster.leadCitation);
       const results = await checkCitationsForHallucinations(leadCitations, [provider]);
-      entries = clusters.map((cluster, index) => ({ cluster, verifiedVia: results[index].verifiedVia }));
+      entries = clusters.map((cluster, index) => ({
+        cluster,
+        verifiedVia: results[index].verifiedVia,
+        nameMismatch: results[index].nameMismatch,
+      }));
     } catch (error) {
       setStatus(`Could not verify against CourtListener. ${error instanceof Error ? error.message : String(error)}`);
       renderCitations(entries, orphaned.length);
