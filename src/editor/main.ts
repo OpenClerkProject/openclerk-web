@@ -16,6 +16,8 @@ import {
 } from "openclerk-core";
 import { extractTextFromFile } from "../fileText";
 import { findMatches, flashOccurrence, getPlainText, isInsideMatch, unwrapElements, wrapRange } from "./dom";
+import { buildOdtArchive, buildPlainTextExport, downloadFile } from "./exportDocument";
+import { CASE_HYPERLINK_CLASS, PARENTHETICAL_HYPERLINK_CLASS, EMBED_NOTE_CLASS, EMBED_EXCERPT_CLASS } from "./markers";
 
 type TabId = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
 type ParentheticalEntry = { citation: string; url: string; id: string };
@@ -28,11 +30,6 @@ type HallucinationResult = {
 };
 type BluebookCheckedCitation = { raw: string; parsed: ParsedCitation | null; issues: BluebookIssue[] };
 type EmbedTextResult = { raw: string; embedded: boolean; reason: string | null };
-
-const CASE_HYPERLINK_CLASS = "oc-case-hyperlink";
-const PARENTHETICAL_HYPERLINK_CLASS = "oc-parenthetical-hyperlink";
-const EMBED_NOTE_CLASS = "oc-embed-note";
-const EMBED_EXCERPT_CLASS = "oc-embed-excerpt";
 
 let parentheticalEntries: ParentheticalEntry[] = [];
 let hallucinationProviderOrder: HallucinationProviderEntry[] = [];
@@ -117,6 +114,18 @@ function clearDocument(): void {
   getDocumentSurface().innerHTML = "<p><br></p>";
   invalidateWorkflowResults();
   setStatus("Document cleared.");
+}
+
+function downloadAsText(): void {
+  const text = buildPlainTextExport(getDocumentSurface());
+  downloadFile(text, "document.txt", "text/plain");
+  setStatus("Downloaded document.txt.");
+}
+
+async function downloadAsOdt(): Promise<void> {
+  const archive = await buildOdtArchive(getDocumentSurface());
+  downloadFile(archive, "document.odt", "application/vnd.oasis.opendocument.text");
+  setStatus("Downloaded document.odt.");
 }
 
 function invalidateWorkflowResults(): void {
@@ -1065,6 +1074,10 @@ function init(): void {
   });
   document.getElementById("load-file-input")!.addEventListener("change", handleDocumentFileUpload);
   document.getElementById("clear-document-button")!.addEventListener("click", clearDocument);
+  document.getElementById("download-txt-button")!.addEventListener("click", downloadAsText);
+  document
+    .getElementById("download-odt-button")!
+    .addEventListener("click", () => withBusyButton(button("download-odt-button"), false, downloadAsOdt));
 
   document.getElementById("provider-select")!.addEventListener("change", renderProviderPanel);
   document
