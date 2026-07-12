@@ -1,26 +1,40 @@
 # openclerk-web
 
 A standalone, client-side-only Bluebook citation checker. Paste one or more case citations (or
-upload a `.txt`/`.docx` file), pick an edition, and get formatting issues back — no server, no
-account, no install for end users. Built on
+upload a `.txt`/`.docx`/`.odt` file), pick an edition, and get formatting issues back — no server,
+no account, no install for end users. Built on
 [openclerk-core](https://github.com/OpenClerkProject/openclerk-core), the same citation-parsing
 and Bluebook rule-checking logic shared with
 [OpenClerk's Word add-in](https://github.com/OpenClerkProject/openclerk-word) and
 [Google Docs add-on](https://github.com/OpenClerkProject/openclerk-gdocs).
 
-Uploaded files never leave the browser — `.txt` is read directly, and `.docx` is unzipped and its
-body text extracted client-side (`src/docxText.ts`, the same OOXML-parsing approach
-`openclerk-word` uses for its own `.docx` handling), reusing the same `extractCaseCitations` /
-`checkCitation` pipeline as pasted text. Have a PDF instead? See **PDF & OCR Tools** below — it's
-a separate page so the main checker stays small and fast.
+Uploaded files never leave the browser — `.txt` is read directly, `.docx` is unzipped and its body
+text extracted client-side (`src/docxText.ts`, the same OOXML-parsing approach `openclerk-word`
+uses for its own `.docx` handling), and `.odt` likewise (`src/odtText.ts`, reading its
+`content.xml` instead). Both formats share the same zip-loading defenses (size caps, entry-count
+caps, decompressed-size caps) via `src/zipText.ts`. All three reuse the same
+`extractCaseCitations`/`checkCitation` pipeline as pasted text. Have a PDF instead? See
+**PDF & OCR Tools** below — it's a separate page so the main checker stays small and fast.
 
 ## Scope
 
 The Citation Checker page (`index.html`) only does Bluebook Check — there's no document to scan,
 so there's nothing to hyperlink or navigate to, and no Online Lookup (that needs a lookup
 provider's API and credentials, which doesn't fit a "paste text, get an answer, nothing leaves
-your browser" tool). Its own file upload supports `.txt` and `.docx` only — no PDF, deliberately:
-see the PDF & OCR Tools page below for why PDF support lives there instead of here.
+your browser" tool). Its own file upload supports `.txt`, `.docx`, and `.odt` only — no PDF,
+deliberately: see the PDF & OCR Tools page below for why PDF support lives there instead of here.
+
+## Document Editor (`editor.html`)
+
+A separate page for drafting or pasting a whole document and running the full set of citation
+workflows against it — Manage Hyperlinks (online lookup + parenthetical citations), Bluebook
+Check, Find Hallucinations, and Embed Cited Text — the same file-upload formats as the Citation
+Checker (`.txt`/`.docx`/`.odt`), plus two ways to get the edited document back out: **Download as
+.txt** (plain text) and **Download as .odt** (a minimal but valid OpenDocument Text file —
+paragraphs, applied hyperlinks, and embedded citation excerpts flattened to bracketed inline text
+— built client-side with `src/editor/exportDocument.ts`, no server round-trip). Neither export
+attempts to preserve rich formatting, since the editor's `contenteditable` surface doesn't have
+any formatting controls to begin with.
 
 ## PDF & OCR Tools (`pdf.html`)
 

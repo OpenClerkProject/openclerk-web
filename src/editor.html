@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClerk — Document Editor</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231a73e8'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Arial, sans-serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
   <style>
     * {
       box-sizing: border-box;
@@ -370,9 +371,11 @@
   <div class="layout">
     <section class="document-pane">
       <div class="document-toolbar">
-        <label for="load-file-input" style="margin-top:0;">Load from file (.txt or .docx)</label>
-        <input type="file" id="load-file-input" accept=".txt,.docx" />
+        <label for="load-file-input" style="margin-top:0;">Load from file (.txt, .docx, or .odt)</label>
+        <input type="file" id="load-file-input" accept=".txt,.docx,.odt" />
         <button type="button" class="secondary" id="clear-document-button">Clear document</button>
+        <button type="button" class="secondary" id="download-txt-button">Download as .txt</button>
+        <button type="button" class="secondary" id="download-odt-button">Download as .odt</button>
       </div>
       <p class="helper-text" id="load-file-status"></p>
       <div id="document-surface" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document text">

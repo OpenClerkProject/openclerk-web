@@ -42,6 +42,21 @@ async function buildDocx(paragraphs: string[]): Promise<File> {
   });
 }
 
+async function buildOdt(paragraphs: string[]): Promise<File> {
+  const zip = new JSZip();
+  const body = paragraphs.map((text) => `<text:p>${text}</text:p>`).join("");
+  zip.file("mimetype", "application/vnd.oasis.opendocument.text", { compression: "STORE" });
+  zip.file(
+    "content.xml",
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+      `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">` +
+      `<office:body><office:text>${body}</office:text></office:body></office:document-content>`
+  );
+  const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
+  return new File([arrayBuffer], "brief.odt", { type: "application/vnd.oasis.opendocument.text" });
+}
+
 describe("openclerk-web main", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -121,6 +136,23 @@ describe("openclerk-web main", () => {
       "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph."
     );
     expect(document.getElementById("file-status")!.textContent).toMatch(/Loaded "brief\.docx"/);
+  });
+
+  it("extracts text from a .odt file's body into the textarea", async () => {
+    const main = require("../src/main");
+    const file = await buildOdt([
+      "Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)",
+      "Second paragraph.",
+    ]);
+    selectFile(file);
+
+    await main.handleFileUpload();
+
+    const textarea = document.getElementById("citation-input") as HTMLTextAreaElement;
+    expect(textarea.value).toBe(
+      "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph."
+    );
+    expect(document.getElementById("file-status")!.textContent).toMatch(/Loaded "brief\.odt"/);
   });
 
   it("rejects an unsupported file type without touching the textarea", async () => {

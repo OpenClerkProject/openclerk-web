@@ -17,6 +17,33 @@ function setStatus(message: string): void {
   document.getElementById("status")!.textContent = message;
 }
 
+// Disables `btn` (+ aria-busy) for the duration of `action` -- extraction can run long (OCR falls
+// back per page with no embedded text layer), and without this a second click mid-run could kick
+// off overlapping work. Same pattern as editor/main.ts's withBusyButton.
+async function withBusyButton(btn: HTMLButtonElement | null, action: () => Promise<void>): Promise<void> {
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+  }
+  try {
+    await action();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+    }
+  }
+}
+
+function handlePdfFileSelected(): void {
+  const fileInput = document.getElementById("pdf-input") as HTMLInputElement;
+  const statusEl = document.getElementById("pdf-file-status");
+  const file = fileInput.files && fileInput.files[0];
+  if (statusEl) {
+    statusEl.textContent = file ? `Selected "${file.name}".` : "";
+  }
+}
+
 function renderPages(pages: PageExtraction[]): void {
   const container = document.getElementById("page-summary")!;
   container.textContent = `Extracted ${pages.length} page(s): ${pages.filter((p) => p.source === "embedded").length} from the embedded text layer, ${
@@ -131,7 +158,12 @@ async function runExtraction(): Promise<void> {
 }
 
 function init(): void {
-  document.getElementById("extract-button")!.addEventListener("click", runExtraction);
+  document.getElementById("pdf-input")!.addEventListener("change", handlePdfFileSelected);
+  document
+    .getElementById("extract-button")!
+    .addEventListener("click", () =>
+      withBusyButton(document.getElementById("extract-button") as HTMLButtonElement | null, runExtraction)
+    );
 }
 
 if (document.readyState === "loading") {

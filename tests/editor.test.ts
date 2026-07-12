@@ -10,6 +10,8 @@ function setUpDom(): void {
     <input type="file" id="load-file-input" />
     <p id="load-file-status"></p>
     <button type="button" id="clear-document-button"></button>
+    <button type="button" id="download-txt-button"></button>
+    <button type="button" id="download-odt-button"></button>
     <div id="document-surface" contenteditable="true"><p>Placeholder.</p></div>
 
     <select id="workflow-select">
@@ -96,6 +98,21 @@ async function buildDocx(paragraphs: string[]): Promise<File> {
   });
 }
 
+async function buildOdt(paragraphs: string[]): Promise<File> {
+  const zip = new JSZip();
+  const body = paragraphs.map((text) => `<text:p>${text}</text:p>`).join("");
+  zip.file("mimetype", "application/vnd.oasis.opendocument.text", { compression: "STORE" });
+  zip.file(
+    "content.xml",
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+      `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">` +
+      `<office:body><office:text>${body}</office:text></office:body></office:document-content>`
+  );
+  const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
+  return new File([arrayBuffer], "brief.odt", { type: "application/vnd.oasis.opendocument.text" });
+}
+
 const CITATION = "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)";
 
 // Fakes CourtListener's two endpoints (citation-lookup and opinions) well enough to exercise the
@@ -139,6 +156,16 @@ describe("openclerk-web editor", () => {
   it("extracts text from a .docx file's body into the document surface", async () => {
     const editor = require("../src/editor/main");
     const file = await buildDocx(["Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"]);
+    selectFile("load-file-input", file);
+
+    await editor.handleDocumentFileUpload();
+
+    expect(documentSurface().textContent).toContain(CITATION);
+  });
+
+  it("extracts text from a .odt file's body into the document surface", async () => {
+    const editor = require("../src/editor/main");
+    const file = await buildOdt(["Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"]);
     selectFile("load-file-input", file);
 
     await editor.handleDocumentFileUpload();
@@ -260,5 +287,41 @@ describe("openclerk-web editor", () => {
     await editor.removeEmbeddedCitationText();
     expect(documentSurface().querySelector("mark.oc-embed-note")).toBeNull();
     expect(documentSurface().querySelector(".oc-embed-excerpt")).toBeNull();
+  });
+
+  it("exports the document as plain text", () => {
+    require("../src/editor/main");
+    const { buildPlainTextExport } = require("../src/editor/exportDocument");
+    setDocText(`${CITATION}\nSecond paragraph.`);
+
+    const text = buildPlainTextExport(documentSurface());
+
+    expect(text).toBe(`${CITATION}\nSecond paragraph.`);
+  });
+
+  it("exports the document as a valid .odt archive with an applied hyperlink preserved", async () => {
+    installCourtListenerFetchMock({ found: true });
+    const editor = require("../src/editor/main");
+    const { buildOdtArchive } = require("../src/editor/exportDocument");
+    setDocText(CITATION);
+
+    const providerSelect = document.getElementById("provider-select") as HTMLSelectElement;
+    providerSelect.value = "courtlistener";
+    providerSelect.dispatchEvent(new Event("change"));
+    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    tokenInput.value = "test-token";
+    await editor.connectSelectedProvider();
+    await editor.applyHyperlinksViaProvider();
+
+    const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
+    const zip = await JSZip.loadAsync(archive);
+
+    expect(zip.file("mimetype")).not.toBeNull();
+    expect(zip.file("META-INF/manifest.xml")).not.toBeNull();
+
+    const contentXml = await zip.file("content.xml")!.async("string");
+    expect(contentXml).toContain("<text:a");
+    expect(contentXml).toContain("/opinion/12345/norfolk/");
+    expect(contentXml).toContain("Norfolk");
   });
 });

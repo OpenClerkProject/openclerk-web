@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClerk — PDF &amp; OCR Tools</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231a73e8'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Arial, sans-serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -71,6 +72,10 @@
     }
     button.primary:hover {
       background: #1558b0;
+    }
+    button.primary:disabled {
+      opacity: 0.55;
+      cursor: default;
     }
     #status,
     #page-summary {
@@ -149,6 +154,7 @@
 
   <label for="pdf-input">PDF file</label>
   <input type="file" id="pdf-input" accept="application/pdf" />
+  <p class="helper-text" id="pdf-file-status" aria-live="polite"></p>
 
   <label class="checkbox-label" for="verify-checkbox" style="margin-top:20px;">
     <input type="checkbox" id="verify-checkbox" />

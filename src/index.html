@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClerk — Bluebook Citation Checker</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231a73e8'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Arial, sans-serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -97,6 +98,13 @@
     footer a {
       color: #5f6368;
     }
+    nav.page-nav {
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    nav.page-nav a {
+      color: #1a73e8;
+    }
     .disclaimer-banner {
       margin-top: 16px;
       padding: 8px 12px;
@@ -118,8 +126,10 @@
     Paste one or more case citations, or upload a file, below. Everything runs in your browser —
     nothing is sent anywhere.
   </p>
-  <p class="helper-text"><a href="editor.html">Editing a whole document? Try the Document Editor →</a></p>
-  <p class="helper-text"><a href="pdf.html">Have a PDF instead of pasted text? Try PDF &amp; OCR Tools →</a></p>
+  <nav class="page-nav">
+    <a href="editor.html">Editing a whole document? Try the Document Editor →</a> &middot;
+    <a href="pdf.html">Have a PDF? Try PDF &amp; OCR Tools →</a>
+  </nav>
 
   <p class="disclaimer-banner" role="note">
     <strong>Not legal advice.</strong> OpenClerk is a citation-formatting and hyperlinking tool, not a substitute for professional judgment. Every citation, hyperlink, and flagged result must be independently verified by a licensed attorney before being relied upon.
@@ -133,8 +143,8 @@
   <textarea id="citation-input" placeholder="Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"></textarea>
   <p class="helper-text">Press Ctrl+Enter (Cmd+Enter on Mac) to check citations without leaving the textarea.</p>
 
-  <label for="file-input">Or upload a file (.txt or .docx)</label>
-  <input type="file" id="file-input" accept=".txt,.docx" />
+  <label for="file-input">Or upload a file (.txt, .docx, or .odt)</label>
+  <input type="file" id="file-input" accept=".txt,.docx,.odt" />
   <p class="helper-text" id="file-status" aria-live="polite"></p>
 
   <button class="primary" id="check-button">Check citations</button>
