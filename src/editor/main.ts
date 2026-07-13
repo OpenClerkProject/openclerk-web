@@ -31,6 +31,23 @@ type HallucinationResult = {
 type BluebookCheckedCitation = { raw: string; parsed: ParsedCitation | null; issues: BluebookIssue[] };
 type EmbedTextResult = { raw: string; embedded: boolean; reason: string | null };
 
+// Mirrors pdf/pdfText.ts's PageExtraction/extractPdfText shapes by hand rather than importing
+// them, even as types -- keeping zero import statements pointing at that module is what
+// guarantees esbuild can never accidentally pull pdf.js/tesseract.js into editor-bundle.js. The
+// real function is only ever reached through window.__openclerkExtractPdfText, set by the
+// lazily-loaded editor-pdf-bundle.js (see loadPdfExtractor).
+type PdfPageExtraction = { pageNumber: number; text: string; source: "embedded" | "ocr" | "empty" };
+type ExtractPdfTextFn = (
+  file: File,
+  options?: { ocr?: boolean; onProgress?: (message: string) => void }
+) => Promise<PdfPageExtraction[]>;
+
+declare global {
+  interface Window {
+    __openclerkExtractPdfText?: ExtractPdfTextFn;
+  }
+}
+
 let parentheticalEntries: ParentheticalEntry[] = [];
 let hallucinationProviderOrder: HallucinationProviderEntry[] = [];
 let lastBluebookResults: BluebookCheckedCitation[] | null = null;
@@ -89,6 +106,46 @@ function setDocumentText(root: HTMLElement, text: string): void {
   });
 }
 
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}.`));
+    document.head.appendChild(script);
+  });
+}
+
+// Loads editor-pdf-bundle.js (pdf.js + tesseract.js, several MB) on first use only -- most
+// Document Editor sessions never touch a PDF, and this keeps that weight out of editor-bundle.js
+// itself (see scripts/build.js's LAZY_BUNDLES comment).
+async function loadPdfExtractor(): Promise<ExtractPdfTextFn> {
+  if (!window.__openclerkExtractPdfText) {
+    await loadScript("editor-pdf-bundle.js");
+  }
+  if (!window.__openclerkExtractPdfText) {
+    throw new Error("Could not load PDF scanning support.");
+  }
+  return window.__openclerkExtractPdfText;
+}
+
+async function loadPdfIntoDocument(file: File, statusEl: HTMLElement): Promise<void> {
+  statusEl.textContent = "Loading PDF scanning support...";
+  const extractPdfText = await loadPdfExtractor();
+
+  const pages = await extractPdfText(file, {
+    onProgress: (message) => {
+      statusEl.textContent = message;
+    },
+  });
+  const text = pages.map((page) => page.text).join("\n\n");
+  setDocumentText(getDocumentSurface(), text);
+
+  const ocrCount = pages.filter((page) => page.source === "ocr").length;
+  const ocrNote = ocrCount > 0 ? `, ${ocrCount} via OCR` : "";
+  statusEl.textContent = `Loaded "${file.name}" (${pages.length} page(s)${ocrNote}) into the document.`;
+}
+
 async function handleDocumentFileUpload(): Promise<void> {
   const fileInput = document.getElementById("load-file-input") as HTMLInputElement;
   const statusEl = document.getElementById("load-file-status")!;
@@ -97,16 +154,25 @@ async function handleDocumentFileUpload(): Promise<void> {
     return;
   }
 
-  statusEl.textContent = `Reading "${file.name}"...`;
+  const root = getDocumentSurface();
+  fileInput.disabled = true;
+  root.contentEditable = "false";
   try {
-    const text = await extractTextFromFile(file);
-    setDocumentText(getDocumentSurface(), text);
-    statusEl.textContent = `Loaded "${file.name}" (${text.length.toLocaleString()} characters) into the document.`;
+    if (file.name.toLowerCase().endsWith(".pdf")) {
+      await loadPdfIntoDocument(file, statusEl);
+    } else {
+      statusEl.textContent = `Reading "${file.name}"...`;
+      const text = await extractTextFromFile(file);
+      setDocumentText(root, text);
+      statusEl.textContent = `Loaded "${file.name}" (${text.length.toLocaleString()} characters) into the document.`;
+    }
     invalidateWorkflowResults();
   } catch (error) {
     statusEl.textContent = error instanceof Error ? error.message : String(error);
   } finally {
     fileInput.value = "";
+    fileInput.disabled = false;
+    root.contentEditable = "true";
   }
 }
 

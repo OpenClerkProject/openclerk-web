@@ -17,6 +17,13 @@ const PAGES = [
   { entry: "src/pdf/main.ts", outfile: "pdf-bundle.js", html: "src/pdf.html" },
 ];
 
+// Built but not referenced by any <script> tag at page-load time -- editor/main.ts injects a
+// <script src="editor-pdf-bundle.js"> at runtime only when someone selects a .pdf file in the
+// Document Editor (see loadPdfExtractor), so the same pdf.js/tesseract.js weight PAGES keeps out
+// of index.html/editor.html's normal load doesn't get pulled back in just because the editor
+// gained PDF support.
+const LAZY_BUNDLES = [{ entry: "src/editor/pdfBridge.ts", outfile: "editor-pdf-bundle.js" }];
+
 // pdf.js needs its worker script available as a plain file next to the bundle -- it isn't part
 // of the bundle itself, since pdf.js loads it via `new Worker(workerSrc)`, not an ES import.
 const STATIC_ASSETS = [
@@ -26,7 +33,7 @@ const STATIC_ASSETS = [
 async function build() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const buildOptions = PAGES.map(({ entry, outfile }) => ({
+  const buildOptions = [...PAGES, ...LAZY_BUNDLES].map(({ entry, outfile }) => ({
     entryPoints: [path.join(ROOT, entry)],
     bundle: true,
     outfile: path.join(OUT_DIR, outfile),
