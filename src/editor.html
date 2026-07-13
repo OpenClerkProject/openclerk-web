@@ -371,13 +371,13 @@
   <div class="layout">
     <section class="document-pane">
       <div class="document-toolbar">
-        <label for="load-file-input" style="margin-top:0;">Load from file (.txt, .docx, or .odt)</label>
-        <input type="file" id="load-file-input" accept=".txt,.docx,.odt" />
+        <label for="load-file-input" style="margin-top:0;">Load from file (.txt, .docx, .odt, or .pdf)</label>
+        <input type="file" id="load-file-input" accept=".txt,.docx,.odt,.pdf" />
         <button type="button" class="secondary" id="clear-document-button">Clear document</button>
         <button type="button" class="secondary" id="download-txt-button">Download as .txt</button>
         <button type="button" class="secondary" id="download-odt-button">Download as .odt</button>
       </div>
-      <p class="helper-text" id="load-file-status"></p>
+      <p class="helper-text" id="load-file-status" aria-live="polite"></p>
       <div id="document-surface" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document text">
         <p>Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980).</p>
       </div>

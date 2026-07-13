@@ -36,6 +36,16 @@ paragraphs, applied hyperlinks, and embedded citation excerpts flattened to brac
 attempts to preserve rich formatting, since the editor's `contenteditable` surface doesn't have
 any formatting controls to begin with.
 
+It also accepts `.pdf` as a fifth upload format, reusing PDF & OCR Tools' own extraction
+(`src/pdf/pdfText.ts`'s `extractPdfText` — embedded text layer, falling back to OCR per page) to
+populate the document with the scanned text, same as any other format. Unlike the other formats,
+though, this doesn't pull pdf.js/tesseract.js into `editor-bundle.js`: selecting a `.pdf` file
+lazily injects a separate `editor-pdf-bundle.js` `<script>` tag (built from
+`src/editor/pdfBridge.ts`) the first time it's needed, and every subsequent PDF in the same
+session reuses it. Everyone who never touches a PDF here pays nothing for this — the same
+reasoning that keeps PDF/OCR out of the Citation Checker (see below) applies to the editor's own
+default download, just solved by lazy-loading instead of leaving the feature out.
+
 ## PDF & OCR Tools (`pdf.html`)
 
 A separate page (own HTML file, own bundle) for uploading a PDF: it extracts text via
@@ -93,6 +103,12 @@ fetch, real `<canvas>` rendering) differ from the Node CLI's.
   copies each page's HTML plus pdf.js's worker script alongside the bundles. That `dist/` folder
   is the entire deployable artifact — open `dist/index.html` directly in a browser, or serve the
   whole folder, no server-side logic required.
+- One bundle, `editor-pdf-bundle.js`, is built but not linked from any HTML `<script>` tag --
+  `editor/main.ts` injects it at runtime only when a `.pdf` is actually selected in the Document
+  Editor. Plain IIFE bundles (this project's build format throughout) can't code-split a dynamic
+  `import()` the way an ESM build with `splitting: true` could, so this is a deliberately
+  low-tech stand-in: a real `<script>` tag, loaded once, that sets a `window` global the caller
+  awaits.
 - Deployed to GitHub Pages via `.github/workflows/deploy-pages.yml` on every push to `main`.
 
 ## Development

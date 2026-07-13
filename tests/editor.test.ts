@@ -142,6 +142,10 @@ describe("openclerk-web editor", () => {
     setUpDom();
   });
 
+  afterEach(() => {
+    delete (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText;
+  });
+
   it("loads a .txt file's contents into the document surface", async () => {
     const editor = require("../src/editor/main");
     const file = new File([CITATION], "brief.txt", { type: "text/plain" });
@@ -171,6 +175,55 @@ describe("openclerk-web editor", () => {
     await editor.handleDocumentFileUpload();
 
     expect(documentSurface().textContent).toContain(CITATION);
+  });
+
+  it("loads extracted text from a .pdf via the lazily-loaded PDF extractor", async () => {
+    const editor = require("../src/editor/main");
+
+    // Simulates editor-pdf-bundle.js already having loaded and registered itself -- the actual
+    // <script> injection and pdf.js/tesseract.js extraction aren't exercised here (jsdom has no
+    // real <canvas>/Worker/WASM support to run them; see pdf.test.ts for the same tradeoff on the
+    // PDF page), just that main.ts correctly calls the global and populates the document from its
+    // result.
+    const mockExtractPdfText = jest.fn(async () => [
+      { pageNumber: 1, text: CITATION, source: "embedded" as const },
+      { pageNumber: 2, text: "Second page, via OCR.", source: "ocr" as const },
+    ]);
+    (window as unknown as { __openclerkExtractPdfText: typeof mockExtractPdfText }).__openclerkExtractPdfText =
+      mockExtractPdfText;
+
+    const file = new File(["%PDF-1.4 fake content"], "brief.pdf", { type: "application/pdf" });
+    selectFile("load-file-input", file);
+
+    await editor.handleDocumentFileUpload();
+
+    expect(mockExtractPdfText).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+    expect(documentSurface().textContent).toContain(CITATION);
+    expect(documentSurface().textContent).toContain("Second page, via OCR.");
+    expect(document.getElementById("load-file-status")!.textContent).toMatch(/Loaded "brief\.pdf" \(2 page\(s\), 1 via OCR\)/);
+  });
+
+  it("reports an error if PDF scanning support can't be loaded", async () => {
+    const editor = require("../src/editor/main");
+    // No window.__openclerkExtractPdfText set, and no script will actually load in jsdom, so
+    // loadPdfExtractor's script-injection path runs and its onload/onerror never fire -- instead
+    // of hanging, simulate the script failing to load (e.g. offline, blocked) via its error path.
+    const originalCreateElement = document.createElement.bind(document);
+    jest.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      const el = originalCreateElement(tagName);
+      if (tagName === "script") {
+        queueMicrotask(() => el.dispatchEvent(new Event("error")));
+      }
+      return el;
+    });
+
+    const file = new File(["%PDF-1.4 fake content"], "brief.pdf", { type: "application/pdf" });
+    selectFile("load-file-input", file);
+
+    await editor.handleDocumentFileUpload();
+
+    expect(document.getElementById("load-file-status")!.textContent).toMatch(/Failed to load/);
+    (document.createElement as jest.Mock).mockRestore();
   });
 
   it("clears the document", () => {
