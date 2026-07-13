@@ -17,6 +17,7 @@ import {
 import { extractTextFromFile } from "../fileText";
 import { findMatches, flashOccurrence, getPlainText, isInsideMatch, unwrapElements, wrapRange } from "./dom";
 import { buildOdtArchive, buildPlainTextExport, downloadFile } from "./exportDocument";
+import { initFormattingToolbar } from "./formatting";
 import { CASE_HYPERLINK_CLASS, PARENTHETICAL_HYPERLINK_CLASS, EMBED_NOTE_CLASS, EMBED_EXCERPT_CLASS } from "./markers";
 
 type TabId = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
@@ -1134,6 +1135,7 @@ function init(): void {
   const root = getDocumentSurface();
   root.addEventListener("click", handleDocumentClick);
   root.addEventListener("keydown", handleDocumentKeydown);
+  initFormattingToolbar(root);
 
   document.getElementById("workflow-select")!.addEventListener("change", (event) => {
     setActiveTab((event.target as HTMLSelectElement).value as TabId);

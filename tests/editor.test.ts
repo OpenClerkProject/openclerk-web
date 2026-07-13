@@ -12,6 +12,21 @@ function setUpDom(): void {
     <button type="button" id="clear-document-button"></button>
     <button type="button" id="download-txt-button"></button>
     <button type="button" id="download-odt-button"></button>
+    <div class="formatting-toolbar">
+      <select id="format-block-select">
+        <option value="p">Normal text</option>
+        <option value="h1">Heading 1</option>
+        <option value="h2">Heading 2</option>
+        <option value="h3">Heading 3</option>
+      </select>
+      <button type="button" id="format-bold-button"></button>
+      <button type="button" id="format-italic-button"></button>
+      <button type="button" id="format-underline-button"></button>
+      <button type="button" id="format-bullet-list-button"></button>
+      <button type="button" id="format-numbered-list-button"></button>
+      <button type="button" id="format-undo-button"></button>
+      <button type="button" id="format-redo-button"></button>
+    </div>
     <div id="document-surface" contenteditable="true"><p>Placeholder.</p></div>
 
     <select id="workflow-select">
@@ -376,5 +391,53 @@ describe("openclerk-web editor", () => {
     expect(contentXml).toContain("<text:a");
     expect(contentXml).toContain("/opinion/12345/norfolk/");
     expect(contentXml).toContain("Norfolk");
+  });
+
+  it("exports headings, lists, and bold/italic/underline formatting in the .odt archive", async () => {
+    require("../src/editor/main");
+    const { buildOdtArchive } = require("../src/editor/exportDocument");
+
+    // Built directly rather than via the formatting toolbar's execCommand calls (not implemented
+    // in jsdom -- see formatting.ts) -- this exercises the export serializer deterministically,
+    // independent of whether the browser's own execCommand happened to produce <b> vs <strong>.
+    documentSurface().innerHTML =
+      `<h1>Case Summary</h1>` +
+      `<p>This case involves <strong>bold</strong>, <em>italic</em>, and <u>underlined</u> text.</p>` +
+      `<ul><li>First point</li><li>Second point</li></ul>` +
+      `<ol><li>Step one</li><li>Step two</li></ol>`;
+
+    const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
+    const zip = await JSZip.loadAsync(archive);
+    const contentXml = await zip.file("content.xml")!.async("string");
+
+    expect(contentXml).toContain('<text:h text:outline-level="1">Case Summary</text:h>');
+    expect(contentXml).toContain('<text:span text:style-name="Bold">bold</text:span>');
+    expect(contentXml).toContain('<text:span text:style-name="Italic">italic</text:span>');
+    expect(contentXml).toContain('<text:span text:style-name="Underline">underlined</text:span>');
+    expect(contentXml).toContain("<text:list-item><text:p>First point</text:p></text:list-item>");
+    expect(contentXml).toContain('<text:list text:style-name="OrderedList">');
+    expect(contentXml).toContain("<text:list-item><text:p>Step one</text:p></text:list-item>");
+  });
+
+  it("wires up the formatting toolbar without throwing, even though execCommand isn't available in jsdom", () => {
+    require("../src/editor/main");
+
+    expect(() => {
+      document.getElementById("format-bold-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-italic-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-underline-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-bullet-list-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-numbered-list-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-undo-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-redo-button")!.dispatchEvent(new Event("click"));
+
+      const blockSelect = document.getElementById("format-block-select") as HTMLSelectElement;
+      blockSelect.value = "h1";
+      blockSelect.dispatchEvent(new Event("change"));
+
+      documentSurface().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true })
+      );
+    }).not.toThrow();
   });
 });
