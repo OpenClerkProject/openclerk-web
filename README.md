@@ -30,11 +30,31 @@ A separate page for drafting or pasting a whole document and running the full se
 workflows against it — Manage Hyperlinks (online lookup + parenthetical citations), Bluebook
 Check, Find Hallucinations, and Embed Cited Text — the same file-upload formats as the Citation
 Checker (`.txt`/`.docx`/`.odt`), plus two ways to get the edited document back out: **Download as
-.txt** (plain text) and **Download as .odt** (a minimal but valid OpenDocument Text file —
-paragraphs, applied hyperlinks, and embedded citation excerpts flattened to bracketed inline text
-— built client-side with `src/editor/exportDocument.ts`, no server round-trip). Neither export
-attempts to preserve rich formatting, since the editor's `contenteditable` surface doesn't have
-any formatting controls to begin with.
+.txt** (plain text) and **Download as .odt** (a minimal but valid OpenDocument Text file — see
+below for what's preserved — built client-side with `src/editor/exportDocument.ts`, no server
+round-trip).
+
+A formatting toolbar (`src/editor/formatting.ts`) adds **bold, italic, underline, paragraph
+styles (Normal/Heading 1-3), bulleted and numbered lists, and undo/redo** to the document surface
+— built on `document.execCommand`, which the HTML spec marks obsolete but which is still what
+every evergreen browser implements for "toggle formatting on the current contenteditable
+selection"; there's no standardized replacement, and hand-rolling a selection-aware bold/italic
+toggle is exactly the problem real editor frameworks like ProseMirror/Tiptap exist to solve. The
+`.odt` export preserves all of this — headings become real ODF headings (`<text:h>`), lists become `<text:list>` (numbered
+lists get their own `text:list-style` so they render as "1. 2. 3." rather than falling back to a
+reader's default bullet), and bold/italic/underline become `<text:span>`s referencing named
+automatic styles. Applied hyperlinks and embedded citation excerpts (flattened to bracketed inline
+text, since a true ODF `office:annotation` needs more metadata than the accuracy gain is worth)
+are preserved the same as before. The plain-`.txt` export, naturally, can't represent any of this
+formatting — it's just the document's text.
+
+**Why not adopt a full editor framework (ProseMirror/Tiptap/Quill) instead:** it was considered,
+and would give a strictly richer editing experience (tables, images, a real toolbar-state model)
+at the cost of a large rewrite -- those frameworks own their own document model instead of letting
+you freely mutate the DOM, so the citation-highlighting/hyperlinking logic this page already has
+(`src/editor/dom.ts`'s Range-based find/wrap/unwrap) would need to be rebuilt against whichever
+framework's marks/decorations API instead. For now this project is staying with the lighter-weight
+`contenteditable` approach and adding features incrementally.
 
 It also accepts `.pdf` as a fifth upload format, reusing PDF & OCR Tools' own extraction
 (`src/pdf/pdfText.ts`'s `extractPdfText` — embedded text layer, falling back to OCR per page) to
