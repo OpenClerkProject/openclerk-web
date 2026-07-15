@@ -666,6 +666,7 @@ function renderBluebookResults(): void {
     row.appendChild(label);
 
     if (!parsed) {
+      row.classList.add("status-warning");
       const result = document.createElement("p");
       result.className = "helper-text issue-flagged";
       result.textContent =
@@ -673,17 +674,25 @@ function renderBluebookResults(): void {
         "citation shape this tool doesn't yet recognize. Verify it manually.";
       row.appendChild(result);
     } else if (issues.length === 0) {
+      row.classList.add("status-ok");
       const result = document.createElement("p");
       result.className = "helper-text issue-ok";
       result.textContent = "No issues found.";
       row.appendChild(result);
     } else {
+      row.classList.add(issues.some((issue) => issue.severity === "error") ? "status-error" : "status-warning");
       const list = document.createElement("ul");
       list.className = "bluebook-issue-item-list";
       issues.forEach((issue) => {
         const item = document.createElement("li");
         item.className = `bluebook-issue-item severity-${issue.severity}`;
-        item.textContent = `${issue.severity === "error" ? "Error" : "Warning"}: ${issue.message}`;
+        const tag = document.createElement("span");
+        tag.className = "rule-tag";
+        tag.textContent = issue.ruleId;
+        item.appendChild(tag);
+        item.appendChild(
+          document.createTextNode(`${issue.severity === "error" ? "Error" : "Warning"}: ${issue.message}`)
+        );
         list.appendChild(item);
       });
       row.appendChild(list);
@@ -862,11 +871,14 @@ function renderHallucinationResults(results: HallucinationResult[]): void {
     const status = document.createElement("p");
     status.className = "helper-text";
     if (result.verifiedVia) {
+      row.classList.add("status-ok");
       status.classList.add("issue-ok");
       status.textContent = `Verified via ${result.verifiedVia}.`;
     } else if (result.rateLimitedProviders.length > 0) {
+      row.classList.add("status-warning");
       status.textContent = `Not checked -- rate-limited by ${result.rateLimitedProviders.join(", ")}. Not a confirmed hallucination; wait a minute and try again.`;
     } else {
+      row.classList.add("status-error");
       status.classList.add("issue-flagged");
       status.textContent =
         result.skippedProviders.length > 0
@@ -1077,9 +1089,11 @@ function renderEmbedTextResults(results: EmbedTextResult[]): void {
     const status = document.createElement("p");
     status.className = "helper-text";
     if (result.embedded) {
+      row.classList.add("status-ok");
       status.classList.add("issue-ok");
       status.textContent = "Embedded -- click the highlighted citation in the document to expand it.";
     } else {
+      row.classList.add("status-error");
       status.classList.add("issue-flagged");
       status.textContent = result.reason || "Not embedded.";
     }
@@ -1124,6 +1138,10 @@ function handleDocumentKeydown(event: KeyboardEvent): void {
 // ---- Init ----
 
 function init(): void {
+  const coreVersionEl = document.getElementById("core-version");
+  if (coreVersionEl) {
+    coreVersionEl.textContent = ` v${__OPENCLERK_CORE_VERSION__}`;
+  }
   populateProviderSelect();
   populateBluebookEditionSelect();
   populateHallucinationProviderList();

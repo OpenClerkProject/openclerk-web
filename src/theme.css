@@ -1,0 +1,639 @@
+/*
+  OpenClerk shared visual system.
+
+  The Bluebook is, literally, a blue book -- so the brand color is a real
+  bookbinding-cloth blue, not a generic SaaS blue. Citation text (the thing
+  actually being checked, character by character) is set in monospace so
+  spacing/punctuation problems are visually legible; document prose is set in
+  a serif built for the page, since that's what a legal document looks like.
+  No webfonts are loaded -- this tool's whole pitch is "nothing leaves your
+  browser," so the type stacks below are system fonts only.
+*/
+
+:root {
+  --color-ink: #1a1d29;
+  --color-ink-soft: #5b5646;
+  --color-paper: #faf9f6;
+  --color-paper-dim: #f1efe8;
+  --color-cloth: #16305c;
+  --color-cloth-bright: #2c4c82;
+  --color-cloth-tint: #eaeff6;
+  --color-rule: #ddd8cc;
+  --color-redline: #b3261e;
+  --color-redline-soft: #f8e9e7;
+  --color-amber: #8a5a10;
+  --color-amber-soft: #faf0dc;
+  --color-verified: #2f6846;
+  --color-verified-soft: #e9f2ec;
+
+  --font-display: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Iowan Old Style", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+}
+
+/* ---- Reset / base ---- */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-cloth);
+}
+a:hover {
+  color: var(--color-cloth-bright);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Masthead ---- */
+/* The one deliberate flourish: a full-bleed cloth-blue band -- the cover of
+   the book -- with a title-page double rule along its bottom edge. Nothing
+   else on the page competes with it for attention. */
+
+.oc-masthead {
+  background: var(--color-cloth);
+  color: var(--color-paper);
+  padding: 26px 20px 20px;
+  border-bottom: 4px double rgba(0, 0, 0, 0.28);
+}
+
+.oc-masthead-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.oc-masthead-inner--narrow {
+  max-width: 720px;
+}
+
+.oc-eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #a7bcda;
+}
+
+.oc-masthead h1 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: 0.01em;
+}
+
+.oc-masthead .subtitle {
+  margin: 0;
+  max-width: 640px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #ccd8e9;
+}
+
+.oc-masthead-nav {
+  margin-top: 12px;
+  font-size: 12.5px;
+}
+.oc-masthead-nav a {
+  color: #cfe0f5;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.35);
+}
+.oc-masthead-nav a:hover {
+  color: #fff;
+  text-decoration-color: currentColor;
+}
+
+/* ---- Page containers ---- */
+
+.oc-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+.oc-page--narrow {
+  max-width: 720px;
+}
+
+/* ---- Forms ---- */
+
+label {
+  display: block;
+  margin: 16px 0 4px;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--color-ink);
+}
+
+select,
+textarea,
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 13.5px;
+  font-family: var(--font-sans);
+}
+select:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  border-color: var(--color-cloth);
+  outline: 2px solid var(--color-cloth);
+  outline-offset: 1px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+#citation-input {
+  min-height: 120px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+input[type="file"] {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--color-ink-soft);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--color-cloth);
+}
+
+.helper-text {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-ink-soft);
+}
+
+label.oc-label-section {
+  margin-top: 20px;
+}
+
+/* ---- Buttons ---- */
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+button.primary {
+  margin-top: 16px;
+  padding: 10px 18px;
+  background: var(--color-cloth);
+  color: var(--color-paper);
+  border: 1px solid var(--color-cloth);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+button.primary:hover {
+  background: var(--color-cloth-bright);
+  border-color: var(--color-cloth-bright);
+}
+button.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.secondary {
+  padding: 7px 12px;
+  background: #fff;
+  color: var(--color-cloth);
+  border: 1px solid var(--color-cloth);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+button.secondary:hover {
+  background: var(--color-cloth-tint);
+}
+button.secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* ---- Status colors + rule tags ---- */
+
+.issue-clean,
+.issue-ok,
+.summary-ok {
+  color: var(--color-verified);
+}
+.issue-error,
+.issue-flagged,
+.summary-errors {
+  color: var(--color-redline);
+}
+.issue-warning,
+.summary-warnings {
+  color: var(--color-amber);
+}
+
+.results-summary {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* A small mono tag showing which mechanical rule fired (openclerk-core's
+   BluebookIssue.ruleId, e.g. "v-period") -- data the checker already
+   produces, now visible instead of discarded. */
+.rule-tag {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  background: var(--color-paper-dim);
+  border: 1px solid var(--color-rule);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+/* ---- Checker page: citation results ---- */
+
+.issue-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.issue-item {
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-left: 3px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+}
+.issue-item.status-ok {
+  border-left-color: var(--color-verified);
+}
+.issue-item.status-warning {
+  border-left-color: var(--color-amber);
+}
+.issue-item.status-error {
+  border-left-color: var(--color-redline);
+}
+
+.issue-citation {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.issue-message {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* ---- Editor: disclaimer banner ---- */
+
+.disclaimer-banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: var(--color-amber-soft);
+  border: 1px solid #d9c393;
+  border-left: 3px solid var(--color-amber);
+  border-radius: var(--radius-sm);
+  color: #5b4110;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.disclaimer-banner strong {
+  color: #4a3208;
+}
+
+/* ---- Editor: layout ---- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.document-pane,
+.workflow-pane {
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.document-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.document-toolbar label {
+  margin: 0;
+}
+
+.formatting-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 6px;
+  background: var(--color-paper-dim);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-bottom: none;
+}
+.formatting-toolbar select {
+  width: auto;
+  padding: 5px 6px;
+  font-size: 12px;
+}
+.format-button {
+  min-width: 30px;
+  padding: 5px 8px;
+  background: #fff;
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1;
+  font-family: var(--font-sans);
+}
+.format-button:hover {
+  background: var(--color-cloth-tint);
+}
+.format-button.active {
+  background: var(--color-cloth-tint);
+  border-color: var(--color-cloth);
+  color: var(--color-cloth);
+}
+.format-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-rule);
+  margin: 0 4px;
+}
+
+#document-surface {
+  min-height: 480px;
+  border: 1px solid var(--color-rule);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 18px 20px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.7;
+  outline: none;
+}
+#document-surface:focus-visible {
+  border-color: var(--color-cloth);
+  box-shadow: 0 0 0 1px var(--color-cloth);
+}
+#document-surface p {
+  margin: 0 0 10px;
+}
+
+#document-surface a.oc-case-hyperlink {
+  color: var(--color-cloth);
+}
+#document-surface a.oc-parenthetical-hyperlink {
+  color: #6a3f7a;
+}
+#document-surface mark.oc-embed-note {
+  background: #f2df8f;
+  cursor: pointer;
+  border-radius: 2px;
+}
+#document-surface .oc-embed-excerpt {
+  display: block;
+  margin: 4px 0 10px;
+  padding: 8px 12px;
+  background: var(--color-paper-dim);
+  border-left: 3px solid var(--color-amber);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+}
+#document-surface mark.oc-flash {
+  background: #f7e488;
+}
+
+/* ---- Editor: workflow pane / tabs ---- */
+
+.tab-panel {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+.tab-panel.active {
+  display: flex;
+}
+
+.citation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.citation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 8px;
+  align-items: center;
+}
+.citation-row label {
+  margin: 0;
+  font-weight: normal;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.bluebook-issue-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px 7px 10px;
+  border-left: 3px solid var(--color-rule);
+  border-bottom: 1px solid var(--color-rule);
+}
+.bluebook-issue-row.status-ok {
+  border-left-color: var(--color-verified);
+}
+.bluebook-issue-row.status-warning {
+  border-left-color: var(--color-amber);
+}
+.bluebook-issue-row.status-error {
+  border-left-color: var(--color-redline);
+}
+
+.citation-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-cloth);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+}
+.citation-link:hover,
+.citation-link:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+.bluebook-issue-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bluebook-issue-item {
+  margin: 0;
+  padding: 2px 0 2px 8px;
+  font-size: 12px;
+  border-left: 2px solid transparent;
+}
+.bluebook-issue-item.severity-error {
+  border-left-color: var(--color-redline);
+  color: var(--color-redline);
+}
+.bluebook-issue-item.severity-warning {
+  border-left-color: var(--color-amber);
+  color: var(--color-amber);
+}
+
+.hallucination-provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+.hallucination-provider-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.hallucination-move-buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.move-button {
+  padding: 2px 8px;
+  line-height: 1.2;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-ink);
+}
+.move-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- Status line + footer ---- */
+
+#status {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+footer {
+  max-width: 1200px;
+  margin: 28px auto 0;
+  padding: 16px 20px 0;
+  border-top: 1px solid var(--color-rule);
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+footer a {
+  color: var(--color-ink-soft);
+}
+.oc-core-version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

@@ -102,9 +102,19 @@ async function handleFileUpload(): Promise<void> {
   }
 }
 
+function statusClass(result: CitationResult): string {
+  if (result.parseFailed) {
+    return "status-warning";
+  }
+  if (result.issues.length === 0) {
+    return "status-ok";
+  }
+  return result.issues.some((issue) => issue.severity === "error") ? "status-error" : "status-warning";
+}
+
 function renderResult(result: CitationResult): HTMLElement {
   const item = document.createElement("div");
-  item.className = "issue-item";
+  item.className = "issue-item " + statusClass(result);
 
   const citationEl = document.createElement("p");
   citationEl.className = "issue-citation";
@@ -125,7 +135,11 @@ function renderResult(result: CitationResult): HTMLElement {
     result.issues.forEach((issue) => {
       const p = document.createElement("p");
       p.className = "issue-message issue-" + issue.severity;
-      p.textContent = issue.message;
+      const tag = document.createElement("span");
+      tag.className = "rule-tag";
+      tag.textContent = issue.ruleId;
+      p.appendChild(tag);
+      p.appendChild(document.createTextNode(issue.message));
       item.appendChild(p);
     });
   }
@@ -135,6 +149,10 @@ function renderResult(result: CitationResult): HTMLElement {
 
 function init(): void {
   populateEditions();
+  const coreVersionEl = document.getElementById("core-version");
+  if (coreVersionEl) {
+    coreVersionEl.textContent = ` v${__OPENCLERK_CORE_VERSION__}`;
+  }
   document.getElementById("edition-select")!.addEventListener("change", renderEditionDescription);
   document.getElementById("check-button")!.addEventListener("click", checkCitations);
   document.getElementById("file-input")!.addEventListener("change", handleFileUpload);

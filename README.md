@@ -120,9 +120,10 @@ fetch, real `<canvas>` rendering) differ from the Node CLI's.
   `URLSearchParams` natively, which is all `openclerk-core` needs.
 - `scripts/build.js` uses esbuild to bundle each page's entry point independently (so, e.g., a
   Citation Checker visitor never downloads the Document Editor's or PDF & OCR Tools' code), and
-  copies each page's HTML plus pdf.js's worker script alongside the bundles. That `dist/` folder
-  is the entire deployable artifact — open `dist/index.html` directly in a browser, or serve the
-  whole folder, no server-side logic required.
+  copies each page's HTML, the shared `src/theme.css` stylesheet, plus pdf.js's worker script
+  alongside the bundles. That `dist/` folder is the entire deployable artifact — open
+  `dist/index.html` directly in a browser, or serve the whole folder, no server-side logic
+  required.
 - One bundle, `editor-pdf-bundle.js`, is built but not linked from any HTML `<script>` tag --
   `editor/main.ts` injects it at runtime only when a `.pdf` is actually selected in the Document
   Editor. Plain IIFE bundles (this project's build format throughout) can't code-split a dynamic
@@ -152,11 +153,23 @@ either allowlist it deliberately (`npm config set allow-scripts openclerk-core` 
 manually and drop the output into `node_modules/openclerk-core` yourself:
 
 ```bash
-git clone --branch v0.2.0 https://github.com/OpenClerkProject/openclerk-core.git /tmp/openclerk-core-build
+git clone --branch v0.2.2 https://github.com/OpenClerkProject/openclerk-core.git /tmp/openclerk-core-build
 cd /tmp/openclerk-core-build && npm install --ignore-scripts && npx tsc
 ```
 
 then copy `package.json` + `lib/` into this repo's `node_modules/openclerk-core/`.
+
+### If `npm test` fails with a `canvas` / `build/Release/canvas.node` error
+
+`canvas` is an optional native dependency of `jsdom` (pulled in transitively via
+`jest-environment-jsdom`) that some platforms — notably Windows on a newer Node.js version with no
+published prebuilt binary, and no full Visual Studio C++ + Windows SDK toolchain to build one from
+source — can't install a working copy of. `tests/globalSetup.js` detects this automatically (a
+broken `canvas` otherwise crashes every suite, not just PDF-related ones, since none of this
+project's tests actually exercise real canvas rendering) and moves the non-functional install aside
+so jsdom falls back to its normal "canvas not installed" behavior. No action needed; a console
+warning notes when this kicks in. Re-run `npm install` later to restore a working `canvas` once a
+prebuilt binary or full build toolchain is available.
 
 ## License
 

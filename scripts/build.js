@@ -30,6 +30,11 @@ const STATIC_ASSETS = [
   { from: "node_modules/pdfjs-dist/build/pdf.worker.min.mjs", to: "pdf.worker.min.mjs" },
 ];
 
+// Read directly from the installed package rather than this project's own package.json, so the
+// UI reflects whatever openclerk-core build actually got bundled (its git ref is a tag, not an
+// exact pin -- see README's stale-lockfile note) rather than just the declared dependency range.
+const openclerkCoreVersion = require(path.join(ROOT, "node_modules/openclerk-core/package.json")).version;
+
 async function build() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -41,6 +46,7 @@ async function build() {
     target: "es2019",
     platform: "browser",
     logLevel: "info",
+    define: { __OPENCLERK_CORE_VERSION__: JSON.stringify(openclerkCoreVersion) },
   }));
 
   if (watch) {
@@ -54,6 +60,7 @@ async function build() {
   PAGES.forEach(({ html }) => {
     fs.copyFileSync(path.join(ROOT, html), path.join(OUT_DIR, path.basename(html)));
   });
+  fs.copyFileSync(path.join(ROOT, "src/theme.css"), path.join(OUT_DIR, "theme.css"));
 
   STATIC_ASSETS.forEach(({ from, to }) => {
     fs.copyFileSync(path.join(ROOT, from), path.join(OUT_DIR, to));
