@@ -171,6 +171,10 @@ async function runExtraction(): Promise<void> {
 }
 
 function init(): void {
+  const coreVersionEl = document.getElementById("core-version");
+  if (coreVersionEl) {
+    coreVersionEl.textContent = ` v${__OPENCLERK_CORE_VERSION__}`;
+  }
   document.getElementById("pdf-input")!.addEventListener("change", handlePdfFileSelected);
   document
     .getElementById("extract-button")!

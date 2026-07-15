@@ -4,538 +4,159 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClerk — Document Editor</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231a73e8'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Arial, sans-serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 16px;
-      color: #202124;
-      background: #f7f7f7;
-    }
-    header {
-      max-width: 1200px;
-      margin: 0 auto 12px;
-    }
-    h1 {
-      font-size: 20px;
-      margin: 0 0 4px;
-    }
-    p.subtitle {
-      color: #5f6368;
-      margin: 0;
-      font-size: 13px;
-    }
-    nav.page-nav {
-      font-size: 12px;
-      margin-top: 6px;
-    }
-    nav.page-nav a {
-      color: #1a73e8;
-    }
-    .disclaimer-banner {
-      max-width: 1200px;
-      margin: 0 auto 12px;
-      padding: 8px 12px;
-      background: #fff4e0;
-      border: 1px solid #d9a441;
-      border-radius: 6px;
-      color: #5f4515;
-      font-size: 12px;
-      line-height: 1.4;
-    }
-    .disclaimer-banner strong {
-      color: #7a3b0a;
-    }
-    .layout {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 380px;
-      gap: 16px;
-      align-items: start;
-    }
-    @media (max-width: 900px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
-    .document-pane {
-      background: #fff;
-      border: 1px solid #dadce0;
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .document-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-    .document-toolbar label {
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .document-toolbar input[type="file"] {
-      font-size: 12px;
-    }
-    button {
-      font-family: inherit;
-      cursor: pointer;
-    }
-    button.secondary {
-      padding: 6px 10px;
-      background: #fff;
-      color: #1a73e8;
-      border: 1px solid #1a73e8;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    button.secondary:hover {
-      background: #f1f6fd;
-    }
-    #load-file-status {
-      font-size: 12px;
-      color: #5f6368;
-      margin: 0;
-    }
-    .formatting-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-      padding: 6px;
-      background: #f7f7f7;
-      border: 1px solid #dadce0;
-      border-radius: 6px 6px 0 0;
-      border-bottom: none;
-    }
-    .formatting-toolbar select {
-      width: auto;
-      padding: 5px 6px;
-      font-size: 12px;
-    }
-    .format-button {
-      min-width: 30px;
-      padding: 5px 8px;
-      background: #fff;
-      color: #202124;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      font-size: 12px;
-      line-height: 1;
-    }
-    .format-button:hover {
-      background: #f1f3f4;
-    }
-    .format-button.active {
-      background: #d2e3fc;
-      border-color: #1a73e8;
-      color: #1a73e8;
-    }
-    .format-divider {
-      width: 1px;
-      height: 20px;
-      background: #dadce0;
-      margin: 0 4px;
-    }
-    #document-surface {
-      min-height: 480px;
-      border: 1px solid #dadce0;
-      border-radius: 0 0 6px 6px;
-      padding: 16px;
-      font-size: 14px;
-      line-height: 1.6;
-      outline: none;
-    }
-    #document-surface:focus {
-      border-color: #1a73e8;
-      box-shadow: 0 0 0 1px #1a73e8;
-    }
-    #document-surface p {
-      margin: 0 0 10px;
-    }
-    #document-surface a.oc-case-hyperlink {
-      color: #1a73e8;
-    }
-    #document-surface a.oc-parenthetical-hyperlink {
-      color: #7b1fa2;
-    }
-    #document-surface mark.oc-embed-note {
-      background: #fdf2c5;
-      cursor: pointer;
-      border-radius: 2px;
-    }
-    #document-surface .oc-embed-excerpt {
-      display: block;
-      margin: 4px 0 10px;
-      padding: 8px 10px;
-      background: #f6f8fa;
-      border-left: 3px solid #b06000;
-      font-size: 13px;
-      color: #3c4043;
-      white-space: pre-wrap;
-    }
-    #document-surface mark.oc-flash {
-      background: #fff59d;
-      transition: background 1.2s ease;
-    }
-    .workflow-pane {
-      background: #fff;
-      border: 1px solid #dadce0;
-      border-radius: 8px;
-      padding: 14px;
-    }
-    label {
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 4px;
-      font-weight: bold;
-      font-size: 13px;
-    }
-    select,
-    input[type="text"],
-    input[type="password"] {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 7px;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      font-size: 13px;
-      font-family: inherit;
-    }
-    .helper-text {
-      color: #5f6368;
-      font-size: 12px;
-      margin: 4px 0 0;
-      line-height: 1.4;
-    }
-    .tab-panel {
-      display: none;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .tab-panel.active {
-      display: flex;
-    }
-    .button-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    button.primary {
-      padding: 9px 14px;
-      background: #1a73e8;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-    button.primary:hover {
-      background: #1558b0;
-    }
-    button.primary:disabled,
-    button.secondary:disabled {
-      opacity: 0.55;
-      cursor: default;
-    }
-    .citation-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 320px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-    .citation-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 140px;
-      gap: 8px;
-      align-items: center;
-    }
-    .citation-row label {
-      margin: 0;
-      font-weight: normal;
-      font-size: 12px;
-      word-break: break-word;
-    }
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      margin-top: 8px;
-    }
-    .results-summary {
-      margin: 10px 0 0;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .summary-errors {
-      color: #d93025;
-    }
-    .summary-warnings {
-      color: #b06000;
-    }
-    .summary-ok {
-      color: #188038;
-    }
-    .bluebook-issue-row {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 6px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .citation-link {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: none;
-      border: none;
-      padding: 0;
-      margin: 0;
-      font: inherit;
-      font-size: 12px;
-      font-weight: 600;
-      color: #1a73e8;
-      cursor: pointer;
-      text-decoration: underline;
-      text-decoration-color: transparent;
-    }
-    .citation-link:hover,
-    .citation-link:focus {
-      text-decoration-color: currentColor;
-    }
-    .issue-ok {
-      color: #188038;
-    }
-    .issue-flagged {
-      color: #d93025;
-    }
-    .bluebook-issue-item-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .bluebook-issue-item {
-      margin: 0;
-      padding: 2px 0 2px 8px;
-      font-size: 12px;
-      border-left: 3px solid transparent;
-    }
-    .bluebook-issue-item.severity-error {
-      border-left-color: #d93025;
-      color: #a02419;
-    }
-    .bluebook-issue-item.severity-warning {
-      border-left-color: #b06000;
-      color: #8a5c0f;
-    }
-    .hallucination-provider-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 6px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .hallucination-provider-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      flex: 1;
-      min-width: 0;
-    }
-    .hallucination-move-buttons {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-    }
-    .move-button {
-      padding: 2px 8px;
-      line-height: 1.2;
-      background: #fff;
-      border: 1px solid #dadce0;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    .move-button:disabled {
-      opacity: 0.35;
-      cursor: default;
-    }
-    #status {
-      max-width: 1200px;
-      margin: 12px auto 0;
-      font-size: 13px;
-      color: #3c4043;
-    }
-    footer {
-      max-width: 1200px;
-      margin: 24px auto 0;
-      font-size: 12px;
-      color: #5f6368;
-    }
-    footer a {
-      color: #5f6368;
-    }
-  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%2316305c'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Georgia, serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
-  <header>
-    <h1>OpenClerk — Document Editor</h1>
-    <p class="subtitle">
-      Draft or paste a document below, then hyperlink, check, and verify its citations --
-      everything runs in your browser, nothing is sent anywhere except the citation lookups you
-      explicitly run.
-    </p>
-    <nav class="page-nav">
-      <a href="index.html">Just checking one citation? Try the Citation Checker →</a> &middot;
-      <a href="pdf.html">Have a PDF? Try PDF &amp; OCR Tools →</a>
-    </nav>
+  <header class="oc-masthead">
+    <div class="oc-masthead-inner">
+      <p class="oc-eyebrow">OpenClerk</p>
+      <h1>Document Editor</h1>
+      <p class="subtitle">
+        Draft or paste a document below, then hyperlink, check, and verify its citations --
+        everything runs in your browser, nothing is sent anywhere except the citation lookups you
+        explicitly run.
+      </p>
+      <nav class="oc-masthead-nav">
+        <a href="index.html">Just checking one citation? Try the Citation Checker →</a> &middot;
+        <a href="pdf.html">Have a PDF? Try PDF &amp; OCR Tools →</a>
+      </nav>
+    </div>
   </header>
 
-  <p class="disclaimer-banner" role="note">
-    <strong>Not legal advice.</strong> OpenClerk is a citation-formatting and hyperlinking tool, not a substitute for professional judgment. Every citation, hyperlink, and flagged result must be independently verified by a licensed attorney before being relied upon.
-  </p>
+  <main class="oc-page">
+    <p class="disclaimer-banner" role="note">
+      <strong>Not legal advice.</strong> OpenClerk is a citation-formatting and hyperlinking tool, not a substitute for professional judgment. Every citation, hyperlink, and flagged result must be independently verified by a licensed attorney before being relied upon.
+    </p>
 
-  <div class="layout">
-    <section class="document-pane">
-      <div class="document-toolbar">
-        <label for="load-file-input" style="margin-top:0;">Load from file (.txt, .docx, .odt, or .pdf)</label>
-        <input type="file" id="load-file-input" accept=".txt,.docx,.odt,.pdf" />
-        <button type="button" class="secondary" id="clear-document-button">Clear document</button>
-        <button type="button" class="secondary" id="download-txt-button">Download as .txt</button>
-        <button type="button" class="secondary" id="download-odt-button">Download as .odt</button>
-      </div>
-      <p class="helper-text" id="load-file-status" aria-live="polite"></p>
+    <div class="layout">
+      <section class="document-pane">
+        <div class="document-toolbar">
+          <label for="load-file-input">Load from file (.txt, .docx, .odt, or .pdf)</label>
+          <input type="file" id="load-file-input" accept=".txt,.docx,.odt,.pdf" />
+          <button type="button" class="secondary" id="clear-document-button">Clear document</button>
+          <button type="button" class="secondary" id="download-txt-button">Download as .txt</button>
+          <button type="button" class="secondary" id="download-odt-button">Download as .odt</button>
+        </div>
+        <p class="helper-text" id="load-file-status" aria-live="polite"></p>
 
-      <div class="formatting-toolbar" role="toolbar" aria-label="Text formatting">
-        <select id="format-block-select" aria-label="Paragraph style">
-          <option value="p">Normal text</option>
-          <option value="h1">Heading 1</option>
-          <option value="h2">Heading 2</option>
-          <option value="h3">Heading 3</option>
+        <div class="formatting-toolbar" role="toolbar" aria-label="Text formatting">
+          <select id="format-block-select" aria-label="Paragraph style">
+            <option value="p">Normal text</option>
+            <option value="h1">Heading 1</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+          </select>
+          <button type="button" class="format-button" id="format-bold-button" title="Bold (Ctrl+B)"><strong>B</strong></button>
+          <button type="button" class="format-button" id="format-italic-button" title="Italic (Ctrl+I)"><em>I</em></button>
+          <button type="button" class="format-button" id="format-underline-button" title="Underline (Ctrl+U)"><u>U</u></button>
+          <span class="format-divider"></span>
+          <button type="button" class="format-button" id="format-bullet-list-button" title="Bulleted list">&bull; List</button>
+          <button type="button" class="format-button" id="format-numbered-list-button" title="Numbered list">1. List</button>
+          <span class="format-divider"></span>
+          <button type="button" class="format-button" id="format-undo-button" title="Undo">&#8630; Undo</button>
+          <button type="button" class="format-button" id="format-redo-button" title="Redo">&#8631; Redo</button>
+        </div>
+
+        <div id="document-surface" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document text">
+          <p>Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980).</p>
+        </div>
+      </section>
+
+      <section class="workflow-pane">
+        <label for="workflow-select">Workflow</label>
+        <select id="workflow-select" aria-label="Citation workflow">
+          <option value="manage-hyperlinks">Manage Hyperlinks</option>
+          <option value="bluebook-check">Bluebook Check</option>
+          <option value="hallucination-check">Find Hallucinations</option>
+          <option value="embed-cited-text">Embed Cited Text</option>
         </select>
-        <button type="button" class="format-button" id="format-bold-button" title="Bold (Ctrl+B)"><strong>B</strong></button>
-        <button type="button" class="format-button" id="format-italic-button" title="Italic (Ctrl+I)"><em>I</em></button>
-        <button type="button" class="format-button" id="format-underline-button" title="Underline (Ctrl+U)"><u>U</u></button>
-        <span class="format-divider"></span>
-        <button type="button" class="format-button" id="format-bullet-list-button" title="Bulleted list">&bull; List</button>
-        <button type="button" class="format-button" id="format-numbered-list-button" title="Numbered list">1. List</button>
-        <span class="format-divider"></span>
-        <button type="button" class="format-button" id="format-undo-button" title="Undo">&#8630; Undo</button>
-        <button type="button" class="format-button" id="format-redo-button" title="Redo">&#8631; Redo</button>
-      </div>
 
-      <div id="document-surface" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document text">
-        <p>Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980).</p>
-      </div>
-    </section>
+        <section id="manage-hyperlinks-panel" class="tab-panel active">
+          <p class="helper-text">Look citations up live through a case-law API and hyperlink only the ones that resolve to an exact case.</p>
 
-    <section class="workflow-pane">
-      <label for="workflow-select">Workflow</label>
-      <select id="workflow-select" aria-label="Citation workflow">
-        <option value="manage-hyperlinks">Manage Hyperlinks</option>
-        <option value="bluebook-check">Bluebook Check</option>
-        <option value="hallucination-check">Find Hallucinations</option>
-        <option value="embed-cited-text">Embed Cited Text</option>
-      </select>
+          <label for="provider-select">Lookup provider</label>
+          <select id="provider-select"></select>
+          <p id="provider-description" class="helper-text"></p>
 
-      <section id="manage-hyperlinks-panel" class="tab-panel active">
-        <p class="helper-text">Look citations up live through a case-law API and hyperlink only the ones that resolve to an exact case.</p>
+          <div id="provider-credential-fields"></div>
+          <div class="button-row">
+            <button type="button" id="provider-connect" class="secondary">Connect</button>
+            <button type="button" id="provider-disconnect" class="secondary">Disconnect</button>
+          </div>
+          <p id="provider-auth-status" class="helper-text">Not connected.</p>
 
-        <label for="provider-select">Lookup provider</label>
-        <select id="provider-select"></select>
-        <p id="provider-description" class="helper-text"></p>
+          <div class="button-row">
+            <button type="button" id="apply-online-hyperlinks" class="primary">Scan &amp; hyperlink</button>
+            <button type="button" id="remove-hyperlinks" class="secondary">Remove hyperlinks</button>
+          </div>
 
-        <div id="provider-credential-fields"></div>
-        <div class="button-row">
-          <button type="button" id="provider-connect" class="secondary">Connect</button>
-          <button type="button" id="provider-disconnect" class="secondary">Disconnect</button>
-        </div>
-        <p id="provider-auth-status" class="helper-text">Not connected.</p>
+          <label for="scan-parentheticals" class="oc-label-section">Other citations (e.g. non-patent literature)</label>
+          <p class="helper-text">Scan for parenthetical citations and assign a URL to each one by hand.</p>
+          <div class="button-row">
+            <button type="button" id="scan-parentheticals" class="secondary">Scan citations</button>
+          </div>
+          <div id="parenthetical-citation-list" class="citation-list"></div>
+          <div class="button-row">
+            <button type="button" id="add-parenthetical-hyperlinks" class="primary">Add hyperlinks</button>
+            <button type="button" id="remove-parenthetical-hyperlinks" class="secondary">Remove hyperlinks</button>
+          </div>
+        </section>
 
-        <div class="button-row">
-          <button type="button" id="apply-online-hyperlinks" class="primary">Scan &amp; hyperlink</button>
-          <button type="button" id="remove-hyperlinks" class="secondary">Remove hyperlinks</button>
-        </div>
+        <section id="bluebook-check-panel" class="tab-panel">
+          <p class="helper-text">Checks mechanical Bluebook conventions -- the "v." abbreviation, reporter form and spacing, page-range digit-dropping, year/court presence, and a few edition-specific abbreviations. Not a substitute for the actual rulebook.</p>
 
-        <label for="scan-parentheticals" style="margin-top:20px;">Other citations (e.g. non-patent literature)</label>
-        <p class="helper-text">Scan for parenthetical citations and assign a URL to each one by hand.</p>
-        <div class="button-row">
-          <button type="button" id="scan-parentheticals" class="secondary">Scan citations</button>
-        </div>
-        <div id="parenthetical-citation-list" class="citation-list"></div>
-        <div class="button-row">
-          <button type="button" id="add-parenthetical-hyperlinks" class="primary">Add hyperlinks</button>
-          <button type="button" id="remove-parenthetical-hyperlinks" class="secondary">Remove hyperlinks</button>
-        </div>
+          <label for="bluebook-edition-select">Bluebook edition</label>
+          <select id="bluebook-edition-select"></select>
+          <p id="bluebook-edition-description" class="helper-text"></p>
+
+          <div class="button-row">
+            <button type="button" id="check-bluebook-citations" class="primary">Check citations</button>
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="bluebook-show-flagged-only" />
+            Only show citations with issues
+          </label>
+          <p id="bluebook-results-summary" class="results-summary"></p>
+          <div id="bluebook-issue-list" class="citation-list"></div>
+        </section>
+
+        <section id="hallucination-check-panel" class="tab-panel">
+          <p class="helper-text">Checks every case-law citation against the platforms you select below, in the order you choose. A citation not found on any selected platform is flagged as a possible hallucination.</p>
+
+          <div id="hallucination-provider-list" class="citation-list"></div>
+
+          <div class="button-row">
+            <button type="button" id="check-hallucinations" class="primary">Find Hallucinations</button>
+          </div>
+          <div id="hallucination-results-list" class="citation-list"></div>
+        </section>
+
+        <section id="embed-cited-text-panel" class="tab-panel">
+          <p class="helper-text">Finds case citations that cite a page beyond the first page of the opinion, and highlights the citation in the document with the cited opinion text attached -- click a highlighted citation to expand or collapse it.</p>
+          <p class="helper-text">Requires a provider that can supply full opinion text; currently only CourtListener, and it requires connecting an API token first (Manage Hyperlinks tab).</p>
+
+          <label for="embed-text-provider-select">Provider</label>
+          <select id="embed-text-provider-select"></select>
+          <p id="embed-text-provider-status" class="helper-text"></p>
+
+          <div class="button-row">
+            <button type="button" id="embed-cited-text" class="primary">Embed cited opinion text</button>
+            <button type="button" id="remove-embedded-text" class="secondary">Remove embedded text</button>
+          </div>
+          <p id="embed-text-results-summary" class="results-summary"></p>
+          <div id="embed-text-results-list" class="citation-list"></div>
+        </section>
       </section>
+    </div>
 
-      <section id="bluebook-check-panel" class="tab-panel">
-        <p class="helper-text">Checks mechanical Bluebook conventions -- the "v." abbreviation, reporter form and spacing, page-range digit-dropping, year/court presence, and a few edition-specific abbreviations. Not a substitute for the actual rulebook.</p>
-
-        <label for="bluebook-edition-select">Bluebook edition</label>
-        <select id="bluebook-edition-select"></select>
-        <p id="bluebook-edition-description" class="helper-text"></p>
-
-        <div class="button-row">
-          <button type="button" id="check-bluebook-citations" class="primary">Check citations</button>
-        </div>
-        <label class="checkbox-label">
-          <input type="checkbox" id="bluebook-show-flagged-only" />
-          Only show citations with issues
-        </label>
-        <p id="bluebook-results-summary" class="results-summary"></p>
-        <div id="bluebook-issue-list" class="citation-list"></div>
-      </section>
-
-      <section id="hallucination-check-panel" class="tab-panel">
-        <p class="helper-text">Checks every case-law citation against the platforms you select below, in the order you choose. A citation not found on any selected platform is flagged as a possible hallucination.</p>
-
-        <div id="hallucination-provider-list" class="citation-list"></div>
-
-        <div class="button-row">
-          <button type="button" id="check-hallucinations" class="primary">Find Hallucinations</button>
-        </div>
-        <div id="hallucination-results-list" class="citation-list"></div>
-      </section>
-
-      <section id="embed-cited-text-panel" class="tab-panel">
-        <p class="helper-text">Finds case citations that cite a page beyond the first page of the opinion, and highlights the citation in the document with the cited opinion text attached -- click a highlighted citation to expand or collapse it.</p>
-        <p class="helper-text">Requires a provider that can supply full opinion text; currently only CourtListener, and it requires connecting an API token first (Manage Hyperlinks tab).</p>
-
-        <label for="embed-text-provider-select">Provider</label>
-        <select id="embed-text-provider-select"></select>
-        <p id="embed-text-provider-status" class="helper-text"></p>
-
-        <div class="button-row">
-          <button type="button" id="embed-cited-text" class="primary">Embed cited opinion text</button>
-          <button type="button" id="remove-embedded-text" class="secondary">Remove embedded text</button>
-        </div>
-        <p id="embed-text-results-summary" class="results-summary"></p>
-        <div id="embed-text-results-list" class="citation-list"></div>
-      </section>
-    </section>
-  </div>
-
-  <p id="status" aria-live="polite"></p>
+    <p id="status" aria-live="polite"></p>
+  </main>
 
   <footer>
     Mechanical Bluebook checks and citation lookups only — not a substitute for the actual
     rulebook or independent verification. Built on
-    <a href="https://github.com/OpenClerkProject/openclerk-core">openclerk-core</a>, the same
+    <a href="https://github.com/OpenClerkProject/openclerk-core">openclerk-core</a><span id="core-version" class="oc-core-version"></span>, the same
     citation-checking logic shared with
     <a href="https://github.com/OpenClerkProject/openclerk-word">OpenClerk's Word add-in</a>.
   </footer>
