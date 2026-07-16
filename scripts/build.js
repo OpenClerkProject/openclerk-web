@@ -6,15 +6,23 @@ const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "dist");
 const watch = process.argv.includes("--watch");
 
-// Three independent bundles, not one shared one: the citation-checker page (main.ts) is meant to
-// stay small and load fast, the document editor (editor/main.ts) pulls in the full
+// Independent bundles, not one shared one: the citation-checker page (main.ts) is meant to stay
+// small and load fast, the document editor (editor/main.ts) pulls in the full
 // hyperlinking/provider/hallucination-check machinery, and the PDF/OCR page (pdf/main.ts) pulls
 // in pdf.js and tesseract.js -- together several MB. Bundling any of these together would mean
 // every visitor to the other pages downloads code they never use.
+//
+// studio.html is the odd one out: it's a different HTML shell around the *same*
+// editor-bundle.js (it loads that bundle directly, via a second <script> tag -- see studio.html)
+// plus this small studio/chrome.ts bundle layered on top for the extra chrome (outline, comment
+// gutter, slide-over), not a fork of editor/main.ts. studio-bundle.js itself stays tiny as a
+// result -- all the citation/hyperlink/file-format logic is still only compiled once, into
+// editor-bundle.js.
 const PAGES = [
   { entry: "src/main.ts", outfile: "bundle.js", html: "src/index.html" },
   { entry: "src/editor/main.ts", outfile: "editor-bundle.js", html: "src/editor.html" },
   { entry: "src/pdf/main.ts", outfile: "pdf-bundle.js", html: "src/pdf.html" },
+  { entry: "src/studio/chrome.ts", outfile: "studio-bundle.js", html: "src/studio.html" },
 ];
 
 // Built but not referenced by any <script> tag at page-load time -- editor/main.ts injects a

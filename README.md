@@ -66,6 +66,72 @@ session reuses it. Everyone who never touches a PDF here pays nothing for this �
 reasoning that keeps PDF/OCR out of the Citation Checker (see below) applies to the editor's own
 default download, just solved by lazy-loading instead of leaving the feature out.
 
+## OpenClerk Studio (`studio.html`)
+
+A second, richer shell around the same Document Editor, for anyone who wants more editing
+chrome around the same underlying tools — a desktop-app-style layout instead of the Document
+Editor's single-column page.
+
+![OpenClerk Studio: app bar, formatting toolbar, document outline, the document itself, a
+comment gutter showing a flagged citation, an open Bluebook Check slide-over, and a status
+bar](docs/screenshots/studio.png)
+
+Studio adds, on top of everything the Document Editor already does:
+
+- **A document outline** (left sidebar), generated live from the document's own headings —
+  click any entry to scroll to it.
+- **A "Citation Health" summary and comment gutter** — after running Bluebook Check and/or Find
+  Hallucinations, flagged citations surface as cards next to the document (not just inside the
+  workflow panel), each one click-to-jump. Read directly off the same rendered results the
+  workflow panels already produce — see `src/studio/chrome.ts`'s file header for why.
+- **A Citations menu + slide-over** instead of a persistent side panel, so the document gets the
+  full window width when you're not actively running a workflow.
+- **Left/justify paragraph alignment**, added to `src/editor/formatting.ts` (and so available on
+  the plain Document Editor too — see its toolbar).
+- **A status bar**: live word count, the selected Bluebook edition, and the same citation-health
+  counts as the outline.
+
+**What it deliberately doesn't add:** a manual "insert hyperlink" or "highlight" button. This
+app's hyperlinking model is citation-verification-driven (Manage Hyperlinks looks a citation up
+against a real provider before linking it) — a raw manual-link button would compete with, not
+complement, that flow. The app bar's title, and its File/Edit/View/Insert menu bar, mirror a
+familiar desktop-editor layout, but only File and Citations are backed by real functionality
+(load/clear/download, and the four citation workflows); Edit/View/Insert have no corresponding
+feature in this app yet and are left as plain labels rather than dead dropdowns that look
+clickable but do nothing.
+
+**How it's built — reusing the Document Editor's logic unmodified, not forking it:**
+`studio.html` loads the *exact same* `editor-bundle.js` as `editor.html` (same `<script>` tag,
+same compiled `src/editor/main.ts`), laid out inside different HTML — every element
+`editor/main.ts` looks up by ID (`#document-surface`, `#workflow-select`,
+`#bluebook-issue-list`, and so on) still exists in `studio.html`, just positioned inside the app
+bar/outline/slide-over chrome instead of a static sidebar. A second, much smaller bundle
+(`studio-bundle.js`, ~10KB, built from `src/studio/chrome.ts`) layers the outline, comment
+gutter, menus, and status bar on top — it drives `editor-bundle.js`'s logic the same way a user
+would (setting `#workflow-select`'s value and dispatching a real `change` event, never calling
+into `main.ts` internals) and *observes* DOM output `editor-bundle.js` already produces (the
+rendered rows in `#bluebook-issue-list`/`#hallucination-results-list`) rather than duplicating
+any citation-checking logic. Net effect: `editor.html` and its bundle are completely unmodified
+by Studio's existence (beyond the shared, additive alignment buttons above), and the two pages
+can never drift out of feature parity with each other, because they're running the same code.
+
+**Why keep the plain Document Editor at all, instead of just replacing it:** Studio's three/four-
+pane layout (216px outline + flexible document + 344px slide-over) needs real width to work.
+Below 860px it doesn't try to cram itself into a phone- or narrow-tablet-sized viewport — it
+shows a plain notice pointing at the Document Editor instead:
+
+![A narrow-viewport view of studio.html, showing a plain message: "Studio needs a larger
+screen," explaining that the Document Editor works everywhere,
+instead](docs/screenshots/studio-mobile-notice.png)
+
+That's a deliberate choice over either (a) squeezing the same panels into a broken, half-usable
+mobile layout, or (b) silently redirecting away from a page the user explicitly navigated to —
+a clear, dismissable notice with a direct link felt more honest than either. The Document Editor
+(below) has no such limit; its single-column layout already collapses cleanly on any screen size:
+
+![The plain Document Editor: a single-column layout with a document pane and a workflow pane
+side by side, showing the Manage Hyperlinks panel](docs/screenshots/editor.png)
+
 ## PDF & OCR Tools (`pdf.html`)
 
 A separate page (own HTML file, own bundle) for uploading a PDF: it extracts text via
@@ -115,7 +181,9 @@ fetch, real `<canvas>` rendering) differ from the Node CLI's.
 - Plain static HTML + a single bundled JS file per page (`src/index.html` + `src/main.ts`,
   `src/editor.html` + `src/editor/main.ts`, `src/pdf.html` + `src/pdf/main.ts` → `dist/`) — no
   framework, no routing, nothing beyond what's needed to wire each page's DOM to
-  `openclerk-core`.
+  `openclerk-core`. `src/studio.html` is the exception: it loads `editor-bundle.js` directly
+  (not its own copy of `editor/main.ts`) plus its own small `studio-bundle.js`
+  (`src/studio/chrome.ts`) for extra chrome — see the OpenClerk Studio section above.
 - Unlike `openclerk-gdocs`, no shims are needed: a real browser already provides `fetch` and
   `URLSearchParams` natively, which is all `openclerk-core` needs.
 - `scripts/build.js` uses esbuild to bundle each page's entry point independently (so, e.g., a

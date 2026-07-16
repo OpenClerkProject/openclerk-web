@@ -637,3 +637,574 @@ footer a {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
+/* =====================================================================================
+   OpenClerk Studio -- the desktop-oriented alternative to the Document Editor above.
+   Prefixed `.stu-` throughout so nothing here can collide with the classes above, which
+   the plain Document Editor (editor.html) still uses unchanged.
+
+   Studio is a fixed-viewport "app shell" (app bar / toolbar / three-pane workspace /
+   status bar, each `flex: none` except the workspace) rather than a scrolling page like
+   every other page in this app -- that's the deliberate trade-off for the extra chrome
+   (outline, comment gutter, slide-over) a desktop editing session wants; see editor.html
+   for the scrolling, small-screen-friendly version of the same underlying tool.
+   ===================================================================================== */
+
+html:has(.stu-shell),
+body.stu-body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.stu-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #e7e3d8;
+}
+
+.stu-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- App bar ---- */
+
+.stu-appbar {
+  flex: none;
+  background: var(--color-cloth);
+  color: var(--color-paper);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 14px 6px;
+}
+
+.stu-appbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+}
+
+.stu-appbar-mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-cloth);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, serif;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.stu-appbar-titleblock {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.1;
+  min-width: 0;
+}
+
+.stu-appbar-title {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  color: #fff;
+  outline: none;
+  min-width: 40px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stu-appbar-title:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.stu-menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  position: relative;
+}
+
+.stu-menu-inert,
+.stu-menu-trigger {
+  font-size: 12px;
+  color: #cfe0f5;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+.stu-menu-inert {
+  cursor: default;
+}
+.stu-menu-trigger {
+  cursor: pointer;
+}
+.stu-menu-trigger:hover,
+.stu-menu-trigger.open {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.stu-menu-wrap {
+  position: relative;
+}
+
+.stu-dropdown {
+  display: none;
+  position: absolute;
+  top: 26px;
+  left: 0;
+  z-index: 60;
+  min-width: 236px;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(26, 29, 41, 0.24);
+  padding: 5px;
+}
+.stu-dropdown.open {
+  display: block;
+}
+.stu-dropdown.stu-dropdown-right {
+  left: auto;
+  right: 0;
+}
+
+.stu-dropdown-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.stu-dropdown-item:hover {
+  background: var(--color-cloth-tint);
+}
+.stu-dropdown-icon {
+  width: 16px;
+  flex: none;
+  color: var(--color-cloth);
+  text-align: center;
+}
+.stu-dropdown-dot {
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.stu-appbar-spacer {
+  flex: 1;
+}
+
+.stu-appbar-privacy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #a7bcda;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* ---- Formatting toolbar ---- */
+
+.stu-toolbar {
+  flex: none;
+  background: var(--color-paper-dim);
+  border-bottom: 1px solid var(--color-rule);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  flex-wrap: wrap;
+}
+.stu-toolbar select {
+  width: auto;
+  height: 30px;
+  padding: 0 8px;
+  font-size: 12.5px;
+}
+.stu-fbtn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+.stu-fbtn:hover {
+  background: var(--color-cloth-tint);
+}
+.stu-fbtn.active {
+  background: var(--color-cloth-tint);
+  border-color: var(--color-cloth);
+  color: var(--color-cloth);
+}
+.stu-toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--color-rule);
+  margin: 0 3px;
+}
+
+/* ---- Workspace (outline / desk / slide-over) ---- */
+
+.stu-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.stu-outline {
+  flex: none;
+  width: 216px;
+  background: #f6f4ee;
+  border-right: 1px solid var(--color-rule);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.stu-outline-header {
+  flex: none;
+  padding: 14px 16px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.stu-outline-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 8px 16px;
+}
+.stu-outline-item {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12.5px;
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.stu-outline-item:hover {
+  background: var(--color-cloth-tint);
+}
+.stu-outline-item.stu-outline-h1 {
+  font-weight: 600;
+}
+.stu-outline-item.stu-outline-h3 {
+  padding-left: 20px;
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+.stu-outline-empty {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+.stu-outline-health {
+  flex: none;
+  border-top: 1px solid var(--color-rule);
+  padding: 12px 16px;
+  background: #efece4;
+}
+.stu-outline-health-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 7px;
+}
+.stu-health-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+.stu-health-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stu-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.stu-health-dot.ok {
+  background: var(--color-verified);
+}
+.stu-health-dot.warning {
+  background: var(--color-amber);
+}
+.stu-health-dot.error {
+  background: var(--color-redline);
+}
+
+.stu-desk {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: #e7e3d8;
+  padding: 34px 40px 80px;
+}
+.stu-desk-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  gap: 26px;
+  align-items: flex-start;
+}
+.stu-page {
+  flex: none;
+  width: 660px;
+  max-width: 100%;
+}
+#document-surface.stu-doc {
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(26, 29, 41, 0.09), 0 14px 40px rgba(26, 29, 41, 0.1);
+  border-radius: 2px;
+  padding: 74px 78px;
+  min-height: 900px;
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  line-height: 1.8;
+  color: var(--color-ink);
+  outline: none;
+}
+#document-surface.stu-doc p {
+  margin: 0 0 13px;
+}
+
+.stu-gutter {
+  flex: 1;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 150px;
+}
+.stu-gutter-empty {
+  display: none;
+}
+.stu-gutter-card {
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-left: 3px solid var(--color-rule);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(26, 29, 41, 0.06);
+  transition: box-shadow 0.15s, border-color 0.15s;
+  font: inherit;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.stu-gutter-card:hover {
+  box-shadow: 0 3px 12px rgba(22, 48, 92, 0.16);
+  border-color: #c7c0af;
+}
+.stu-gutter-card.status-error {
+  border-left-color: var(--color-redline);
+}
+.stu-gutter-card.status-warning {
+  border-left-color: var(--color-amber);
+}
+.stu-gutter-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.stu-gutter-card-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-cloth);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, serif;
+  font-size: 12px;
+  flex: none;
+}
+.stu-gutter-card-source {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.stu-gutter-card-kind {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--color-ink-soft);
+}
+.stu-gutter-card-cite {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 0 0 3px;
+}
+.stu-gutter-card-message {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+.stu-gutter-card.status-error .stu-gutter-card-message {
+  color: var(--color-redline);
+}
+.stu-gutter-card.status-warning .stu-gutter-card-message {
+  color: var(--color-amber);
+}
+
+/* ---- Slide-over ---- */
+
+.stu-slideover {
+  display: none;
+  flex: none;
+  width: 344px;
+  background: #fff;
+  border-left: 1px solid var(--color-rule);
+  flex-direction: column;
+  min-height: 0;
+}
+.stu-slideover.open {
+  display: flex;
+}
+.stu-slideover-header {
+  flex: none;
+  padding: 12px 12px 12px 16px;
+  border-bottom: 1px solid var(--color-rule);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stu-slideover-header span {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-cloth);
+}
+.stu-slideover-close {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  line-height: 1;
+  font-family: inherit;
+}
+.stu-slideover-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.stu-slideover-footer {
+  flex: none;
+  border-top: 1px solid var(--color-rule);
+  padding: 10px 14px;
+  background: #f6f4ee;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-ink-soft);
+}
+
+/* ---- Status bar ---- */
+
+.stu-statusbar {
+  flex: none;
+  background: var(--color-cloth);
+  color: #cfe0f5;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 5px 16px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+.stu-statusbar-message {
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stu-statusbar-spacer {
+  flex: 1;
+}
+.stu-statusbar .stu-count-ok {
+  color: #7fb08f;
+}
+.stu-statusbar .stu-count-warning {
+  color: #e0b877;
+}
+.stu-statusbar .stu-count-error {
+  color: #e79b95;
+}
+
+/* ---- Small-screen notice ---- */
+/* Studio's three-pane layout (216px outline + flexible desk + 344px slide-over) needs real
+   width to work -- rather than silently collapsing panes into an unusable cramped mess, or
+   auto-redirecting away from a page the user explicitly navigated to, tell them plainly and
+   point at the Document Editor, which is the deliberately-kept mobile-friendly alternative. */
+
+.stu-small-screen-notice {
+  display: none;
+}
+@media (max-width: 860px) {
+  .stu-shell {
+    display: none;
+  }
+  .stu-small-screen-notice {
+    display: block;
+  }
+}
