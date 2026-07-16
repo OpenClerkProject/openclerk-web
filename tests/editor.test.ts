@@ -421,6 +421,20 @@ describe("openclerk-web editor", () => {
     expect(contentXml).toContain("<text:list-item><text:p>Step one</text:p></text:list-item>");
   });
 
+  it("exports a manually-inserted hyperlink (Studio's Insert menu) as a real <text:a> in the .odt archive", async () => {
+    require("../src/editor/main");
+    const { buildOdtArchive } = require("../src/editor/exportDocument");
+    const { MANUAL_HYPERLINK_CLASS } = require("../src/editor/markers");
+
+    documentSurface().innerHTML = `<p>See <a class="${MANUAL_HYPERLINK_CLASS}" href="https://example.com/exhibit-a">Exhibit A</a> for details.</p>`;
+
+    const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
+    const zip = await JSZip.loadAsync(archive);
+    const contentXml = await zip.file("content.xml")!.async("string");
+
+    expect(contentXml).toContain('<text:a xlink:type="simple" xlink:href="https://example.com/exhibit-a">Exhibit A</text:a>');
+  });
+
   it("wires up the formatting toolbar without throwing, even though execCommand isn't available in jsdom", () => {
     require("../src/editor/main");
 

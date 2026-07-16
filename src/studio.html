@@ -36,9 +36,8 @@
         <div class="stu-appbar-titleblock">
           <div id="stu-doc-title" class="stu-appbar-title" contenteditable="true" spellcheck="false">Untitled document</div>
           <div class="stu-menubar">
-            <span class="stu-menu-inert">Edit</span>
-            <span class="stu-menu-inert">View</span>
-            <span class="stu-menu-inert">Insert</span>
+            <span class="stu-menu-inert" title="No Edit-menu options exist in this app yet">Edit</span>
+            <span class="stu-menu-inert" title="No View options exist in this app yet">View</span>
 
             <span class="stu-menu-wrap">
               <button type="button" class="stu-menu-trigger" id="stu-file-menu-trigger" aria-haspopup="true" aria-expanded="false">File ▾</button>
@@ -50,7 +49,14 @@
                 <button type="button" class="stu-dropdown-item" id="clear-document-button" role="menuitem">
                   <span class="stu-dropdown-icon">🗑</span>Clear document
                 </button>
-                <div style="height:1px;background:var(--color-rule);margin:5px 4px"></div>
+                <div class="stu-dropdown-divider"></div>
+                <button type="button" class="stu-dropdown-item" id="download-txt-button" role="menuitem">
+                  <span class="stu-dropdown-icon">⬇</span>Download as .txt
+                </button>
+                <button type="button" class="stu-dropdown-item" id="download-odt-button" role="menuitem">
+                  <span class="stu-dropdown-icon">⬇</span>Download as .odt
+                </button>
+                <div class="stu-dropdown-divider"></div>
                 <a class="stu-dropdown-item" href="editor.html" role="menuitem">
                   <span class="stu-dropdown-icon">📱</span>Switch to Document Editor (mobile-friendly)
                 </a>
@@ -60,6 +66,15 @@
                 <a class="stu-dropdown-item" href="pdf.html" role="menuitem">
                   <span class="stu-dropdown-icon">📄</span>PDF &amp; OCR Tools
                 </a>
+              </div>
+            </span>
+
+            <span class="stu-menu-wrap">
+              <button type="button" class="stu-menu-trigger" id="stu-insert-menu-trigger" aria-haspopup="true" aria-expanded="false">Insert ▾</button>
+              <div class="stu-dropdown" id="stu-insert-menu" role="menu">
+                <button type="button" class="stu-dropdown-item" id="stu-insert-hyperlink" role="menuitem">
+                  <span class="stu-dropdown-icon">🔗</span>Hyperlink&hellip;
+                </button>
               </div>
             </span>
 
@@ -90,18 +105,6 @@
         <span>🔒</span>
         Private &middot; nothing leaves your browser
       </div>
-
-      <span class="stu-menu-wrap">
-        <button type="button" class="stu-menu-trigger" id="stu-download-menu-trigger" style="color:var(--color-cloth);background:var(--color-paper);border:1px solid var(--color-paper);border-radius:4px;padding:6px 14px;font-weight:700;font-size:12.5px" aria-haspopup="true" aria-expanded="false">Download ▾</button>
-        <div class="stu-dropdown stu-dropdown-right" id="stu-download-menu" role="menu">
-          <button type="button" class="stu-dropdown-item" id="download-txt-button" role="menuitem">
-            <span class="stu-dropdown-icon">⬇</span>Download as .txt
-          </button>
-          <button type="button" class="stu-dropdown-item" id="download-odt-button" role="menuitem">
-            <span class="stu-dropdown-icon">⬇</span>Download as .odt
-          </button>
-        </div>
-      </span>
     </div>
 
     <!-- ============ FORMATTING TOOLBAR ============ -->

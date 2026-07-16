@@ -1,6 +1,12 @@
 import JSZip from "jszip";
 import { getPlainText } from "./dom";
-import { CASE_HYPERLINK_CLASS, PARENTHETICAL_HYPERLINK_CLASS, EMBED_NOTE_CLASS, EMBED_EXCERPT_CLASS } from "./markers";
+import {
+  CASE_HYPERLINK_CLASS,
+  PARENTHETICAL_HYPERLINK_CLASS,
+  MANUAL_HYPERLINK_CLASS,
+  EMBED_NOTE_CLASS,
+  EMBED_EXCERPT_CLASS,
+} from "./markers";
 
 const ODT_MIME_TYPE = "application/vnd.oasis.opendocument.text";
 
@@ -46,7 +52,7 @@ function escapeXml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-const HYPERLINK_SELECTOR = `a.${CASE_HYPERLINK_CLASS}, a.${PARENTHETICAL_HYPERLINK_CLASS}`;
+const HYPERLINK_SELECTOR = `a.${CASE_HYPERLINK_CLASS}, a.${PARENTHETICAL_HYPERLINK_CLASS}, a.${MANUAL_HYPERLINK_CLASS}`;
 const INLINE_STYLE_TAGS: Record<string, string> = { B: "Bold", STRONG: "Bold", I: "Italic", EM: "Italic", U: "Underline" };
 
 // Walks one block element's inline content into ODF content.xml markup: hyperlinks become

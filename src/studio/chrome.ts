@@ -1,8 +1,8 @@
 // OpenClerk Studio's "chrome" -- the app bar, outline, comment gutter, workflow slide-over, and
 // status bar around the Document Editor's actual logic.
 //
-// This file deliberately knows nothing about citation-checking, hyperlinking, or file formats --
-// all of that still lives in editor/main.ts, loaded on this page unmodified as editor-bundle.js
+// This file deliberately knows nothing about citation-checking or file formats -- all of that
+// still lives in editor/main.ts, loaded on this page unmodified as editor-bundle.js
 // (studio.html reuses the exact same element IDs main.ts already wires up: #document-surface,
 // #workflow-select, #bluebook-issue-list, and so on, just laid out differently). Everything here
 // either (a) drives those existing elements the same way a user's mouse would -- setting
@@ -12,6 +12,34 @@
 // Health" summary and the comment gutter. That keeps this file (and studio-bundle.js) completely
 // decoupled from editor/main.ts's internals, so editor.html and its bundle are unaffected by
 // anything here.
+//
+// The one exception is the Insert menu's "Hyperlink..." command, which reuses dom.ts's
+// `wrapRange` (a small, dependency-free DOM primitive, not part of main.ts's citation logic) for
+// the actual DOM wrapping.
+
+import { wrapRange } from "../editor/dom";
+import { MANUAL_HYPERLINK_CLASS } from "../editor/markers";
+
+// Deliberately NOT importing openclerk-core's own isSafeHyperlinkUrl here: openclerk-core's
+// compiled output is one CommonJS barrel file (lib/index.js), which esbuild can't tree-shake --
+// importing even this one small function pulled in the *entire* library (bluebook rule sets,
+// citation providers, everything editor-bundle.js already has), ballooning this file's ~10KB
+// bundle to ~475KB. Same reasoning as editor/main.ts's hand-written PdfPageExtraction type: a
+// small, self-contained duplicate here is cheaper than an import that isn't actually small. Keep
+// this in sync with openclerk-core's src/utils.ts if its allowed schemes ever change.
+const ALLOWED_HYPERLINK_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+function isSafeHyperlinkUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+  try {
+    const parsed = new URL(trimmed, "https://placeholder.invalid/");
+    return ALLOWED_HYPERLINK_SCHEMES.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
 
 type WorkflowPanel = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
 
@@ -305,14 +333,81 @@ function renderGutter(bluebookRows: ResultRow[], hallucinationRows: ResultRow[])
   });
 }
 
+// ---- Insert menu: generic hyperlink on the current selection ----
+// Deliberately separate from Manage Hyperlinks (Citations menu), which looks a *case citation* up
+// against a real provider before linking it -- this is a plain "link this text to a URL" command
+// for everything else a legal document might reference (an exhibit, a filed docket entry, an
+// external website), the same baseline feature every word processor's Insert menu has.
+
+function setStudioStatus(message: string): void {
+  const statusEl = $("status");
+  if (statusEl) {
+    statusEl.textContent = message;
+  }
+}
+
+function insertHyperlink(): void {
+  const doc = $("document-surface");
+  const selection = document.getSelection();
+  if (!doc || !selection || selection.rangeCount === 0) {
+    setStudioStatus("Select some text in the document first.");
+    return;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (range.collapsed || !doc.contains(range.startContainer) || !doc.contains(range.endContainer)) {
+    setStudioStatus("Select some text in the document first.");
+    return;
+  }
+
+  const url = window.prompt("Link URL:");
+  if (url === null) {
+    return;
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return;
+  }
+  if (!isSafeHyperlinkUrl(trimmed)) {
+    setStudioStatus('That URL doesn\'t look safe to link to -- only "http://" and "https://" links are allowed.');
+    return;
+  }
+
+  const wrapped = wrapRange(range, () => {
+    const a = document.createElement("a");
+    a.className = MANUAL_HYPERLINK_CLASS;
+    a.href = trimmed;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    return a;
+  });
+
+  if (!wrapped) {
+    setStudioStatus("Could not add a hyperlink to the current selection.");
+    return;
+  }
+
+  // Collapse the selection to just after the new link, rather than leaving it spanning the
+  // (now-wrapped) old range or clearing it entirely -- keeps the cursor in a normal, predictable
+  // place so typing and arrow-key navigation continue naturally from where the link ends.
+  const afterLink = document.createRange();
+  afterLink.setStartAfter(wrapped);
+  afterLink.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(afterLink);
+
+  setStudioStatus("Hyperlink added.");
+}
+
 // ---- Wiring ----
 
 function init(): void {
   wireDropdown("stu-file-menu-trigger", "stu-file-menu");
   wireDropdown("stu-cite-menu-trigger", "stu-cite-menu");
-  wireDropdown("stu-download-menu-trigger", "stu-download-menu");
+  wireDropdown("stu-insert-menu-trigger", "stu-insert-menu");
   document.addEventListener("click", closeAllDropdowns);
   wireCitationsMenu();
+  $("stu-insert-hyperlink")?.addEventListener("click", insertHyperlink);
   openWorkflow("manage-hyperlinks");
   closeWorkflow();
 
@@ -351,4 +446,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, openWorkflow, closeWorkflow, refreshOutline, refreshWordCount, refreshHealthAndGutter };
+export { init, openWorkflow, closeWorkflow, refreshOutline, refreshWordCount, refreshHealthAndGutter, insertHyperlink };

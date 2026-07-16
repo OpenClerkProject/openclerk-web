@@ -11,6 +11,14 @@ function setUpDom(): void {
       <button type="button" id="stu-file-menu-trigger"></button>
       <div class="stu-dropdown" id="stu-file-menu">
         <label for="load-file-input">Load</label>
+        <button type="button" id="download-txt-button"></button>
+        <button type="button" id="download-odt-button"></button>
+      </div>
+    </span>
+    <span class="stu-menu-wrap">
+      <button type="button" id="stu-insert-menu-trigger"></button>
+      <div class="stu-dropdown" id="stu-insert-menu">
+        <button type="button" id="stu-insert-hyperlink"></button>
       </div>
     </span>
     <span class="stu-menu-wrap">
@@ -20,13 +28,6 @@ function setUpDom(): void {
         <button type="button" data-panel="bluebook-check"></button>
         <button type="button" data-panel="hallucination-check"></button>
         <button type="button" data-panel="embed-cited-text"></button>
-      </div>
-    </span>
-    <span class="stu-menu-wrap">
-      <button type="button" id="stu-download-menu-trigger"></button>
-      <div class="stu-dropdown" id="stu-download-menu">
-        <button type="button" id="download-txt-button"></button>
-        <button type="button" id="download-odt-button"></button>
       </div>
     </span>
 
@@ -240,5 +241,89 @@ describe("OpenClerk Studio chrome", () => {
 
     expect(document.getElementById("stu-health-summary")!.textContent).toContain("Run a check");
     expect(document.querySelectorAll(".stu-gutter-card").length).toBe(0);
+  });
+
+  describe("Insert > Hyperlink", () => {
+    function selectDocumentText(): void {
+      const root = documentSurface();
+      root.innerHTML = "<p>Some selectable text.</p>";
+      const textNode = root.querySelector("p")!.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, 5);
+      range.setEnd(textNode, 15);
+      const selection = document.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    it("does nothing and reports a status message when no text is selected", () => {
+      require("../src/editor/main");
+      const chrome = require("../src/studio/chrome");
+      documentSurface().innerHTML = "<p>Nothing selected.</p>";
+      document.getSelection()!.removeAllRanges();
+
+      chrome.insertHyperlink();
+
+      expect(document.getElementById("status")!.textContent).toContain("Select some text");
+      expect(documentSurface().querySelector("a")).toBeNull();
+    });
+
+    it("wraps the selection in a hyperlink and preserves normal cursor navigation afterward", () => {
+      require("../src/editor/main");
+      const chrome = require("../src/studio/chrome");
+      selectDocumentText();
+      jest.spyOn(window, "prompt").mockReturnValue("https://example.com/exhibit-a");
+
+      chrome.insertHyperlink();
+
+      const link = documentSurface().querySelector("a");
+      expect(link).not.toBeNull();
+      expect(link!.href).toBe("https://example.com/exhibit-a");
+      expect(link!.getAttribute("target")).toBe("_blank");
+      expect(document.getElementById("status")!.textContent).toContain("Hyperlink added");
+
+      // The selection should collapse to just after the new link, not be left spanning stale
+      // (now-wrapped) nodes -- this is what keeps arrow-key/click navigation in the document
+      // working normally afterward, rather than resuming from an invalid or surprising position.
+      const selection = document.getSelection()!;
+      expect(selection.isCollapsed).toBe(true);
+      expect(documentSurface().contains(selection.anchorNode)).toBe(true);
+    });
+
+    it("rejects an unsafe URL scheme and leaves the document unchanged", () => {
+      require("../src/editor/main");
+      const chrome = require("../src/studio/chrome");
+      selectDocumentText();
+      jest.spyOn(window, "prompt").mockReturnValue("javascript:alert(1)");
+
+      chrome.insertHyperlink();
+
+      expect(documentSurface().querySelector("a")).toBeNull();
+      expect(document.getElementById("status")!.textContent).toContain("doesn't look safe");
+    });
+
+    it("does nothing when the prompt is cancelled", () => {
+      require("../src/editor/main");
+      const chrome = require("../src/studio/chrome");
+      selectDocumentText();
+      jest.spyOn(window, "prompt").mockReturnValue(null);
+
+      expect(() => chrome.insertHyperlink()).not.toThrow();
+      expect(documentSurface().querySelector("a")).toBeNull();
+    });
+  });
+
+  it("wires the Insert menu dropdown open and closed like the other menus", () => {
+    require("../src/editor/main");
+    require("../src/studio/chrome");
+
+    const trigger = document.getElementById("stu-insert-menu-trigger")!;
+    const menu = document.getElementById("stu-insert-menu")!;
+
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(menu.classList.contains("open")).toBe(true);
+
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(menu.classList.contains("open")).toBe(false);
   });
 });
