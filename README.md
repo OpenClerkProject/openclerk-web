@@ -79,26 +79,33 @@ bar](docs/screenshots/studio.png)
 Studio adds, on top of everything the Document Editor already does:
 
 - **A document outline** (left sidebar), generated live from the document's own headings —
-  click any entry to scroll to it.
+  click any entry to scroll to it. This keeps working exactly the same way through any of the
+  changes below — nothing here touches how the outline is built or navigated.
 - **A "Citation Health" summary and comment gutter** — after running Bluebook Check and/or Find
   Hallucinations, flagged citations surface as cards next to the document (not just inside the
   workflow panel), each one click-to-jump. Read directly off the same rendered results the
   workflow panels already produce — see `src/studio/chrome.ts`'s file header for why.
 - **A Citations menu + slide-over** instead of a persistent side panel, so the document gets the
   full window width when you're not actively running a workflow.
+- **A working File menu** — Load from file, Clear document, Download as .txt/.odt (all in one
+  place, rather than split between a separate top-right button and a menu), plus links to the
+  other three pages.
+- **A working Insert menu** — currently just "Hyperlink...", which links the current selection to
+  a URL you enter (validated the same way every other hyperlink in this app is —
+  `isSafeHyperlinkUrl`'s http(s)/mailto allowlist — and preserved through `.odt` export as a real
+  `<text:a>`). This is deliberately generic, not citation-specific: Manage Hyperlinks (Citations
+  menu) looks a *case citation* up against a real provider before linking it; Insert > Hyperlink
+  is the plain "link this text to a URL" command every word processor's Insert menu has, for
+  everything else a legal document might reference (an exhibit, a docket entry, an external
+  page). Edit and View remain plain labels — there's no corresponding feature in this app yet for
+  either, and a dropdown with nothing real behind it would be worse than an honest static label.
 - **Left/justify paragraph alignment**, added to `src/editor/formatting.ts` (and so available on
   the plain Document Editor too — see its toolbar).
 - **A status bar**: live word count, the selected Bluebook edition, and the same citation-health
   counts as the outline.
 
-**What it deliberately doesn't add:** a manual "insert hyperlink" or "highlight" button. This
-app's hyperlinking model is citation-verification-driven (Manage Hyperlinks looks a citation up
-against a real provider before linking it) — a raw manual-link button would compete with, not
-complement, that flow. The app bar's title, and its File/Edit/View/Insert menu bar, mirror a
-familiar desktop-editor layout, but only File and Citations are backed by real functionality
-(load/clear/download, and the four citation workflows); Edit/View/Insert have no corresponding
-feature in this app yet and are left as plain labels rather than dead dropdowns that look
-clickable but do nothing.
+![The File menu open, showing Load/Clear/Download and the links to the other three
+pages](docs/screenshots/studio-file-menu.png)
 
 **How it's built — reusing the Document Editor's logic unmodified, not forking it:**
 `studio.html` loads the *exact same* `editor-bundle.js` as `editor.html` (same `<script>` tag,
@@ -106,7 +113,7 @@ same compiled `src/editor/main.ts`), laid out inside different HTML — every el
 `editor/main.ts` looks up by ID (`#document-surface`, `#workflow-select`,
 `#bluebook-issue-list`, and so on) still exists in `studio.html`, just positioned inside the app
 bar/outline/slide-over chrome instead of a static sidebar. A second, much smaller bundle
-(`studio-bundle.js`, ~10KB, built from `src/studio/chrome.ts`) layers the outline, comment
+(`studio-bundle.js`, ~13KB, built from `src/studio/chrome.ts`) layers the outline, comment
 gutter, menus, and status bar on top — it drives `editor-bundle.js`'s logic the same way a user
 would (setting `#workflow-select`'s value and dispatching a real `change` event, never calling
 into `main.ts` internals) and *observes* DOM output `editor-bundle.js` already produces (the
@@ -114,6 +121,16 @@ rendered rows in `#bluebook-issue-list`/`#hallucination-results-list`) rather th
 any citation-checking logic. Net effect: `editor.html` and its bundle are completely unmodified
 by Studio's existence (beyond the shared, additive alignment buttons above), and the two pages
 can never drift out of feature parity with each other, because they're running the same code.
+
+Insert > Hyperlink is the one place `studio/chrome.ts` does real DOM manipulation of its own
+(reusing `dom.ts`'s `wrapRange`, the same primitive `editor/main.ts`'s own hyperlinking uses) —
+and it deliberately does **not** import `openclerk-core`'s own `isSafeHyperlinkUrl` to validate
+the URL, even though that function already exists and does exactly the right check. `openclerk-
+core`'s compiled output is one CommonJS barrel file, which esbuild can't tree-shake — importing
+even that one small function pulled in the *entire* library (every Bluebook rule set, every
+citation provider) and ballooned `studio-bundle.js` from ~13KB to ~475KB. A small hand-rolled
+duplicate of that one check (same allowed-schemes allowlist, kept in sync by comment) costs far
+less than an import that isn't actually small.
 
 **Why keep the plain Document Editor at all, instead of just replacing it:** Studio's three/four-
 pane layout (216px outline + flexible document + 344px slide-over) needs real width to work.

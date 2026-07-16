@@ -5,5 +5,6 @@
 // download buttons).
 export const CASE_HYPERLINK_CLASS = "oc-case-hyperlink";
 export const PARENTHETICAL_HYPERLINK_CLASS = "oc-parenthetical-hyperlink";
+export const MANUAL_HYPERLINK_CLASS = "oc-manual-hyperlink";
 export const EMBED_NOTE_CLASS = "oc-embed-note";
 export const EMBED_EXCERPT_CLASS = "oc-embed-excerpt";

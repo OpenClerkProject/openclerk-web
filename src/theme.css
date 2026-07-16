@@ -808,6 +808,11 @@ body.stu-body {
 .stu-dropdown-item:hover {
   background: var(--color-cloth-tint);
 }
+.stu-dropdown-divider {
+  height: 1px;
+  background: var(--color-rule);
+  margin: 5px 4px;
+}
 .stu-dropdown-icon {
   width: 16px;
   flex: none;
