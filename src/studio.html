@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClerk Studio — Document Editor</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%2316305c'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Georgia, serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="theme.css" />
+</head>
+<body class="stu-body">
+
+  <div class="stu-small-screen-notice">
+    <header class="oc-masthead">
+      <div class="oc-masthead-inner oc-masthead-inner--narrow">
+        <p class="oc-eyebrow">OpenClerk</p>
+        <h1>Studio needs a larger screen</h1>
+        <p class="subtitle">
+          Studio's outline, comment gutter, and slide-over panels are built for a desktop-sized
+          window. On a phone or narrow tablet, use the Document Editor instead -- it's the same
+          hyperlinking, Bluebook, and hallucination-checking tools in a single-column layout that
+          works everywhere.
+        </p>
+        <nav class="oc-masthead-nav">
+          <a href="editor.html">Open the Document Editor →</a> &middot;
+          <a href="index.html">Citation Checker →</a>
+        </nav>
+      </div>
+    </header>
+  </div>
+
+  <div class="stu-shell">
+    <!-- ============ APP BAR ============ -->
+    <div class="stu-appbar">
+      <div class="stu-appbar-brand">
+        <div class="stu-appbar-mark">§</div>
+        <div class="stu-appbar-titleblock">
+          <div id="stu-doc-title" class="stu-appbar-title" contenteditable="true" spellcheck="false">Untitled document</div>
+          <div class="stu-menubar">
+            <span class="stu-menu-inert">Edit</span>
+            <span class="stu-menu-inert">View</span>
+            <span class="stu-menu-inert">Insert</span>
+
+            <span class="stu-menu-wrap">
+              <button type="button" class="stu-menu-trigger" id="stu-file-menu-trigger" aria-haspopup="true" aria-expanded="false">File ▾</button>
+              <div class="stu-dropdown" id="stu-file-menu" role="menu">
+                <label class="stu-dropdown-item" for="load-file-input" role="menuitem">
+                  <span class="stu-dropdown-icon">📄</span>Load from file&hellip;
+                </label>
+                <input type="file" id="load-file-input" accept=".txt,.docx,.odt,.pdf" class="stu-visually-hidden" />
+                <button type="button" class="stu-dropdown-item" id="clear-document-button" role="menuitem">
+                  <span class="stu-dropdown-icon">🗑</span>Clear document
+                </button>
+                <div style="height:1px;background:var(--color-rule);margin:5px 4px"></div>
+                <a class="stu-dropdown-item" href="editor.html" role="menuitem">
+                  <span class="stu-dropdown-icon">📱</span>Switch to Document Editor (mobile-friendly)
+                </a>
+                <a class="stu-dropdown-item" href="index.html" role="menuitem">
+                  <span class="stu-dropdown-icon">§</span>Citation Checker
+                </a>
+                <a class="stu-dropdown-item" href="pdf.html" role="menuitem">
+                  <span class="stu-dropdown-icon">📄</span>PDF &amp; OCR Tools
+                </a>
+              </div>
+            </span>
+
+            <span class="stu-menu-wrap">
+              <button type="button" class="stu-menu-trigger" id="stu-cite-menu-trigger" aria-haspopup="true" aria-expanded="false">Citations ▾</button>
+              <div class="stu-dropdown" id="stu-cite-menu" role="menu">
+                <button type="button" class="stu-dropdown-item" data-panel="manage-hyperlinks" role="menuitem">
+                  <span class="stu-dropdown-icon">🔗</span>Manage Hyperlinks
+                </button>
+                <button type="button" class="stu-dropdown-item" data-panel="bluebook-check" role="menuitem">
+                  <span class="stu-dropdown-icon" style="font-family:Georgia,serif">§</span>Bluebook Check
+                </button>
+                <button type="button" class="stu-dropdown-item" data-panel="hallucination-check" role="menuitem">
+                  <span class="stu-dropdown-icon">⚠</span>Find Hallucinations
+                </button>
+                <button type="button" class="stu-dropdown-item" data-panel="embed-cited-text" role="menuitem">
+                  <span class="stu-dropdown-icon">❝</span>Embed Cited Text
+                </button>
+              </div>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stu-appbar-spacer"></div>
+
+      <div class="stu-appbar-privacy" title="Nothing is uploaded -- the document and all checks run locally in your browser.">
+        <span>🔒</span>
+        Private &middot; nothing leaves your browser
+      </div>
+
+      <span class="stu-menu-wrap">
+        <button type="button" class="stu-menu-trigger" id="stu-download-menu-trigger" style="color:var(--color-cloth);background:var(--color-paper);border:1px solid var(--color-paper);border-radius:4px;padding:6px 14px;font-weight:700;font-size:12.5px" aria-haspopup="true" aria-expanded="false">Download ▾</button>
+        <div class="stu-dropdown stu-dropdown-right" id="stu-download-menu" role="menu">
+          <button type="button" class="stu-dropdown-item" id="download-txt-button" role="menuitem">
+            <span class="stu-dropdown-icon">⬇</span>Download as .txt
+          </button>
+          <button type="button" class="stu-dropdown-item" id="download-odt-button" role="menuitem">
+            <span class="stu-dropdown-icon">⬇</span>Download as .odt
+          </button>
+        </div>
+      </span>
+    </div>
+
+    <!-- ============ FORMATTING TOOLBAR ============ -->
+    <div class="stu-toolbar" role="toolbar" aria-label="Text formatting">
+      <button type="button" class="stu-fbtn" id="format-undo-button" title="Undo">&#8630;</button>
+      <button type="button" class="stu-fbtn" id="format-redo-button" title="Redo">&#8631;</button>
+      <span class="stu-toolbar-divider"></span>
+      <select id="format-block-select" aria-label="Paragraph style" title="Paragraph style">
+        <option value="p">Normal text</option>
+        <option value="h1">Title</option>
+        <option value="h2">Heading 1</option>
+        <option value="h3">Heading 2</option>
+      </select>
+      <span class="stu-toolbar-divider"></span>
+      <button type="button" class="stu-fbtn" id="format-bold-button" title="Bold (Ctrl+B)" style="font-weight:800">B</button>
+      <button type="button" class="stu-fbtn" id="format-italic-button" title="Italic (Ctrl+I)" style="font-style:italic;font-family:Georgia,serif">I</button>
+      <button type="button" class="stu-fbtn" id="format-underline-button" title="Underline (Ctrl+U)" style="text-decoration:underline">U</button>
+      <span class="stu-toolbar-divider"></span>
+      <button type="button" class="stu-fbtn" id="format-bullet-list-button" title="Bulleted list">&bull;</button>
+      <button type="button" class="stu-fbtn" id="format-numbered-list-button" title="Numbered list" style="font-size:12px">1.</button>
+      <button type="button" class="stu-fbtn" id="format-align-left-button" title="Align left">&#9776;</button>
+      <button type="button" class="stu-fbtn" id="format-align-justify-button" title="Justify">&#9638;</button>
+    </div>
+
+    <!-- ============ WORKSPACE ============ -->
+    <div class="stu-workspace">
+
+      <!-- LEFT: OUTLINE -->
+      <div class="stu-outline">
+        <div class="stu-outline-header">Document Outline</div>
+        <nav class="stu-outline-list oc-scroll" id="stu-outline-list" aria-label="Document outline"></nav>
+        <div class="stu-outline-health">
+          <div class="stu-outline-health-title">Citation Health</div>
+          <div class="stu-health-summary" id="stu-health-summary" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- CENTER: DESK -->
+      <div class="stu-desk oc-scroll" id="stu-desk">
+        <div class="stu-desk-inner">
+          <div class="stu-page">
+            <div
+              id="document-surface"
+              class="stu-doc"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Document text"
+            ><p>Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980).</p></div>
+          </div>
+          <div class="stu-gutter" id="stu-gutter" aria-label="Flagged citations"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: WORKFLOW SLIDE-OVER -->
+      <div class="stu-slideover" id="stu-slideover" aria-label="Citation workflows">
+        <div class="stu-slideover-header">
+          <span id="stu-slideover-title">Manage Hyperlinks</span>
+          <div style="flex:1"></div>
+          <button type="button" id="stu-slideover-close" class="stu-slideover-close" title="Close">&times;</button>
+        </div>
+
+        <div class="stu-slideover-body oc-scroll">
+          <p id="load-file-status" class="helper-text" aria-live="polite"></p>
+
+          <!-- workflow-select stays functional (drives editor/main.ts's tab switching) but is
+               visually replaced by the Citations menu above; see studio/chrome.ts. -->
+          <select id="workflow-select" class="stu-visually-hidden" aria-hidden="true" tabindex="-1">
+            <option value="manage-hyperlinks">Manage Hyperlinks</option>
+            <option value="bluebook-check">Bluebook Check</option>
+            <option value="hallucination-check">Find Hallucinations</option>
+            <option value="embed-cited-text">Embed Cited Text</option>
+          </select>
+
+          <section id="manage-hyperlinks-panel" class="tab-panel active">
+            <p class="helper-text">Look citations up live through a case-law API and hyperlink only the ones that resolve to an exact case.</p>
+
+            <label for="provider-select">Lookup provider</label>
+            <select id="provider-select"></select>
+            <p id="provider-description" class="helper-text"></p>
+
+            <div id="provider-credential-fields"></div>
+            <div class="button-row">
+              <button type="button" id="provider-connect" class="secondary">Connect</button>
+              <button type="button" id="provider-disconnect" class="secondary">Disconnect</button>
+            </div>
+            <p id="provider-auth-status" class="helper-text">Not connected.</p>
+
+            <div class="button-row">
+              <button type="button" id="apply-online-hyperlinks" class="primary">Scan &amp; hyperlink</button>
+              <button type="button" id="remove-hyperlinks" class="secondary">Remove hyperlinks</button>
+            </div>
+
+            <label for="scan-parentheticals" class="oc-label-section">Other citations (e.g. non-patent literature)</label>
+            <p class="helper-text">Scan for parenthetical citations and assign a URL to each one by hand.</p>
+            <div class="button-row">
+              <button type="button" id="scan-parentheticals" class="secondary">Scan citations</button>
+            </div>
+            <div id="parenthetical-citation-list" class="citation-list"></div>
+            <div class="button-row">
+              <button type="button" id="add-parenthetical-hyperlinks" class="primary">Add hyperlinks</button>
+              <button type="button" id="remove-parenthetical-hyperlinks" class="secondary">Remove hyperlinks</button>
+            </div>
+          </section>
+
+          <section id="bluebook-check-panel" class="tab-panel">
+            <p class="helper-text">Checks mechanical Bluebook conventions -- the "v." abbreviation, reporter form and spacing, page-range digit-dropping, year/court presence, and a few edition-specific abbreviations. Not a substitute for the actual rulebook.</p>
+
+            <label for="bluebook-edition-select">Bluebook edition</label>
+            <select id="bluebook-edition-select"></select>
+            <p id="bluebook-edition-description" class="helper-text"></p>
+
+            <div class="button-row">
+              <button type="button" id="check-bluebook-citations" class="primary">Check citations</button>
+            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" id="bluebook-show-flagged-only" />
+              Only show citations with issues
+            </label>
+            <p id="bluebook-results-summary" class="results-summary"></p>
+            <div id="bluebook-issue-list" class="citation-list"></div>
+          </section>
+
+          <section id="hallucination-check-panel" class="tab-panel">
+            <p class="helper-text">Checks every case-law citation against the platforms you select below, in the order you choose. A citation not found on any selected platform is flagged as a possible hallucination.</p>
+
+            <div id="hallucination-provider-list" class="citation-list"></div>
+
+            <div class="button-row">
+              <button type="button" id="check-hallucinations" class="primary">Find Hallucinations</button>
+            </div>
+            <div id="hallucination-results-list" class="citation-list"></div>
+          </section>
+
+          <section id="embed-cited-text-panel" class="tab-panel">
+            <p class="helper-text">Finds case citations that cite a page beyond the first page of the opinion, and highlights the citation in the document with the cited opinion text attached -- click a highlighted citation to expand or collapse it.</p>
+            <p class="helper-text">Requires a provider that can supply full opinion text; currently only CourtListener, and it requires connecting an API token first (Manage Hyperlinks tab).</p>
+
+            <label for="embed-text-provider-select">Provider</label>
+            <select id="embed-text-provider-select"></select>
+            <p id="embed-text-provider-status" class="helper-text"></p>
+
+            <div class="button-row">
+              <button type="button" id="embed-cited-text" class="primary">Embed cited opinion text</button>
+              <button type="button" id="remove-embedded-text" class="secondary">Remove embedded text</button>
+            </div>
+            <p id="embed-text-results-summary" class="results-summary"></p>
+            <div id="embed-text-results-list" class="citation-list"></div>
+          </section>
+        </div>
+
+        <div class="stu-slideover-footer">
+          <strong style="color:var(--color-amber)">Not legal advice.</strong> Every flagged result must be independently verified by a licensed attorney.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STATUS BAR ============ -->
+    <div class="stu-statusbar">
+      <span id="stu-wordcount">0 words</span>
+      <span id="stu-edition-label"></span>
+      <span id="core-version" class="oc-core-version" style="color:#a7bcda"></span>
+      <span id="status" class="stu-statusbar-message" aria-live="polite"></span>
+      <div class="stu-statusbar-spacer"></div>
+      <span id="stu-status-verified" class="stu-count-ok"></span>
+      <span id="stu-status-warning" class="stu-count-warning"></span>
+      <span id="stu-status-error" class="stu-count-error"></span>
+    </div>
+  </div>
+
+  <script src="editor-bundle.js"></script>
+  <script src="studio-bundle.js"></script>
+</body>
+</html>

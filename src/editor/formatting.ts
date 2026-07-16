@@ -1,5 +1,8 @@
 // A small Word/Docs-style formatting toolbar for the document surface: bold/italic/underline,
-// paragraph style (Normal/Heading 1-3), bullet/numbered lists, and undo/redo.
+// paragraph style (Normal/Heading 1-3), bullet/numbered lists, left/justify alignment, and
+// undo/redo. Deliberately has no manual "insert hyperlink" or "highlight" button -- this app's
+// hyperlinking model is citation-verification-driven (Manage Hyperlinks), and a raw manual-link
+// button would compete with, rather than complement, that flow.
 //
 // Built on `document.execCommand`, which the HTML spec marks obsolete -- there's still no
 // standardized replacement for "toggle bold on the current selection in a contenteditable region"
@@ -46,6 +49,8 @@ function updateToolbarState(root: HTMLElement): void {
   const underlineButton = document.getElementById("format-underline-button");
   const bulletButton = document.getElementById("format-bullet-list-button");
   const numberedButton = document.getElementById("format-numbered-list-button");
+  const alignLeftButton = document.getElementById("format-align-left-button");
+  const alignJustifyButton = document.getElementById("format-align-justify-button");
   const blockSelect = document.getElementById("format-block-select") as HTMLSelectElement | null;
 
   boldButton?.classList.toggle("active", document.queryCommandState("bold"));
@@ -53,6 +58,11 @@ function updateToolbarState(root: HTMLElement): void {
   underlineButton?.classList.toggle("active", document.queryCommandState("underline"));
   bulletButton?.classList.toggle("active", document.queryCommandState("insertUnorderedList"));
   numberedButton?.classList.toggle("active", document.queryCommandState("insertOrderedList"));
+  if (alignLeftButton || alignJustifyButton) {
+    const justified = document.queryCommandState("justifyFull");
+    alignLeftButton?.classList.toggle("active", !justified);
+    alignJustifyButton?.classList.toggle("active", justified);
+  }
 
   if (blockSelect) {
     blockSelect.value = normalizeFormatBlockValue(document.queryCommandValue("formatBlock") || "p");
@@ -66,6 +76,8 @@ export function initFormattingToolbar(root: HTMLElement): void {
   document.getElementById("format-underline-button")?.addEventListener("click", () => exec("underline"));
   document.getElementById("format-bullet-list-button")?.addEventListener("click", () => exec("insertUnorderedList"));
   document.getElementById("format-numbered-list-button")?.addEventListener("click", () => exec("insertOrderedList"));
+  document.getElementById("format-align-left-button")?.addEventListener("click", () => exec("justifyLeft"));
+  document.getElementById("format-align-justify-button")?.addEventListener("click", () => exec("justifyFull"));
   document.getElementById("format-undo-button")?.addEventListener("click", () => exec("undo"));
   document.getElementById("format-redo-button")?.addEventListener("click", () => exec("redo"));
 

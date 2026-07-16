@@ -24,6 +24,8 @@ function setUpDom(): void {
       <button type="button" id="format-underline-button"></button>
       <button type="button" id="format-bullet-list-button"></button>
       <button type="button" id="format-numbered-list-button"></button>
+      <button type="button" id="format-align-left-button"></button>
+      <button type="button" id="format-align-justify-button"></button>
       <button type="button" id="format-undo-button"></button>
       <button type="button" id="format-redo-button"></button>
     </div>
@@ -428,6 +430,8 @@ describe("openclerk-web editor", () => {
       document.getElementById("format-underline-button")!.dispatchEvent(new Event("click"));
       document.getElementById("format-bullet-list-button")!.dispatchEvent(new Event("click"));
       document.getElementById("format-numbered-list-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-align-left-button")!.dispatchEvent(new Event("click"));
+      document.getElementById("format-align-justify-button")!.dispatchEvent(new Event("click"));
       document.getElementById("format-undo-button")!.dispatchEvent(new Event("click"));
       document.getElementById("format-redo-button")!.dispatchEvent(new Event("click"));
 
