@@ -23,6 +23,7 @@ const PAGES = [
   { entry: "src/editor/main.ts", outfile: "editor-bundle.js", html: "src/editor.html" },
   { entry: "src/pdf/main.ts", outfile: "pdf-bundle.js", html: "src/pdf.html" },
   { entry: "src/studio/chrome.ts", outfile: "studio-bundle.js", html: "src/studio.html" },
+  { entry: "src/examples/main.ts", outfile: "examples-bundle.js", html: "src/examples.html" },
 ];
 
 // Built but not referenced by any <script> tag at page-load time -- editor/main.ts injects a
@@ -34,8 +35,14 @@ const LAZY_BUNDLES = [{ entry: "src/editor/pdfBridge.ts", outfile: "editor-pdf-b
 
 // pdf.js needs its worker script available as a plain file next to the bundle -- it isn't part
 // of the bundle itself, since pdf.js loads it via `new Worker(workerSrc)`, not an ES import.
+//
+// The example PDF is served from the same source file tests/pdf.test.ts already uses as a
+// fixture (a real, publicly filed scanned document -- see examples.html and the README's PDF &
+// OCR Tools section), rather than keeping a second copy under src/ -- one canonical file for
+// both purposes.
 const STATIC_ASSETS = [
   { from: "node_modules/pdfjs-dist/build/pdf.worker.min.mjs", to: "pdf.worker.min.mjs" },
+  { from: "tests/fixtures/mata-v-avianca-filing.pdf", to: "mata-v-avianca-filing.pdf" },
 ];
 
 // Read directly from the installed package rather than this project's own package.json, so the

@@ -193,22 +193,42 @@ manually smoke-tested in an actual browser** -- do that against the fixture abov
 on it, since browser-specific concerns (the vendored worker file path, tesseract.js's CDN asset
 fetch, real `<canvas>` rendering) differ from the Node CLI's.
 
+## Examples & How to Use (`examples.html`)
+
+A documentation page for anyone new to the site: what each of the four tools above is for, a
+numbered walkthrough of each one's actual workflow, and a copy-pasteable example (one clean
+citation, one with a real, flagged Table T6 abbreviation issue) for the Citation Checker.
+
+![The Examples & How to Use page, showing the downloadable example PDF card and the numbered
+walkthrough for each tool](docs/screenshots/examples.png)
+
+Its headline example is a real downloadable file — the same
+[tests/fixtures/mata-v-avianca-filing.pdf](tests/fixtures/mata-v-avianca-filing.pdf) `pdf.test.ts`
+already uses (`scripts/build.js`'s `STATIC_ASSETS` copies that one source file straight into
+`dist/`, rather than keeping a second copy under `src/`), described on the page as what it
+actually is: a real, publicly filed federal court document with no embedded text layer (so it
+exercises PDF & OCR Tools' OCR fallback for real) containing both citations that resolve cleanly
+and two fabricated ones that don't — see the PDF & OCR Tools section above for the full backstory
+and how this file has been verified so far.
+
 ## Architecture
 
 - Plain static HTML + a single bundled JS file per page (`src/index.html` + `src/main.ts`,
-  `src/editor.html` + `src/editor/main.ts`, `src/pdf.html` + `src/pdf/main.ts` → `dist/`) — no
-  framework, no routing, nothing beyond what's needed to wire each page's DOM to
-  `openclerk-core`. `src/studio.html` is the exception: it loads `editor-bundle.js` directly
-  (not its own copy of `editor/main.ts`) plus its own small `studio-bundle.js`
-  (`src/studio/chrome.ts`) for extra chrome — see the OpenClerk Studio section above.
+  `src/editor.html` + `src/editor/main.ts`, `src/pdf.html` + `src/pdf/main.ts`,
+  `src/examples.html` + `src/examples/main.ts` → `dist/`) — no framework, no routing, nothing
+  beyond what's needed to wire each page's DOM to `openclerk-core` (`examples.html`'s own bundle
+  has no `openclerk-core` dependency at all — it's pure documentation chrome, ~1KB). `src/
+  studio.html` is the exception: it loads `editor-bundle.js` directly (not its own copy of
+  `editor/main.ts`) plus its own small `studio-bundle.js` (`src/studio/chrome.ts`) for extra
+  chrome — see the OpenClerk Studio section above.
 - Unlike `openclerk-gdocs`, no shims are needed: a real browser already provides `fetch` and
   `URLSearchParams` natively, which is all `openclerk-core` needs.
 - `scripts/build.js` uses esbuild to bundle each page's entry point independently (so, e.g., a
   Citation Checker visitor never downloads the Document Editor's or PDF & OCR Tools' code), and
-  copies each page's HTML, the shared `src/theme.css` stylesheet, plus pdf.js's worker script
-  alongside the bundles. That `dist/` folder is the entire deployable artifact — open
-  `dist/index.html` directly in a browser, or serve the whole folder, no server-side logic
-  required.
+  copies each page's HTML, the shared `src/theme.css` stylesheet, plus pdf.js's worker script and
+  the Examples page's downloadable example PDF alongside the bundles. That `dist/` folder is the
+  entire deployable artifact — open `dist/index.html` directly in a browser, or serve the whole
+  folder, no server-side logic required.
 - One bundle, `editor-pdf-bundle.js`, is built but not linked from any HTML `<script>` tag --
   `editor/main.ts` injects it at runtime only when a `.pdf` is actually selected in the Document
   Editor. Plain IIFE bundles (this project's build format throughout) can't code-split a dynamic

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClerk — Examples &amp; How to Use</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%2316305c'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Georgia, serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+  <header class="oc-masthead">
+    <div class="oc-masthead-inner">
+      <p class="oc-eyebrow">OpenClerk</p>
+      <h1>Examples &amp; How to Use</h1>
+      <p class="subtitle">
+        New here? This page walks through what each of OpenClerk's four tools does, with
+        step-by-step instructions and a real example file to try everything with.
+      </p>
+      <nav class="oc-masthead-nav">
+        <a href="index.html">Citation Checker</a> &middot;
+        <a href="editor.html">Document Editor</a> &middot;
+        <a href="studio.html">OpenClerk Studio</a> &middot;
+        <a href="pdf.html">PDF &amp; OCR Tools</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="oc-page oc-page--narrow">
+    <p class="disclaimer-banner" role="note">
+      <strong>Not legal advice.</strong> OpenClerk is a citation-formatting and hyperlinking tool, not a substitute for professional judgment. Every citation, hyperlink, and flagged result must be independently verified by a licensed attorney before being relied upon.
+    </p>
+
+    <section class="oc-examples-section">
+      <h2>Try it now: a real example file</h2>
+      <p>
+        The file below is the actual affirmation in opposition filed in
+        <em>Mata v. Avianca, Inc.</em>, No. 1:22-cv-01461-PKC (S.D.N.Y.) — the case at the center
+        of the widely reported incident in which an attorney submitted ChatGPT-fabricated case
+        citations to a federal court. It's a genuinely useful test file because it exercises
+        every part of this app's citation-checking pipeline at once, on a real document instead
+        of a made-up one.
+      </p>
+
+      <div class="oc-example-file">
+        <div class="oc-example-file-icon">📄</div>
+        <div class="oc-example-file-body">
+          <p class="oc-example-file-name">mata-v-avianca-filing.pdf &middot; 441 KB</p>
+          <p class="helper-text">
+            A genuinely scanned filing (no embedded text layer) containing both real case
+            citations and two fabricated ones:
+          </p>
+          <ul>
+            <li>
+              <strong>No embedded text layer</strong> — every page is a scanned image, so opening
+              it in PDF &amp; OCR Tools exercises the OCR fallback, not just text-layer
+              extraction.
+            </li>
+            <li>
+              <strong>Real citations</strong> (<em>Ashcroft v. Iqbal</em>,
+              <em>Bell Atlantic Corp. v. Twombly</em>,
+              <em>Norfolk &amp; W. Ry. Co. v. Liepelt</em>) that resolve cleanly against a real
+              case-law lookup.
+            </li>
+            <li>
+              <strong>Two fabricated citations</strong> (<em>Peterson v. Iran Air</em>,
+              <em>Martinez v. Delta Airlines, Inc.</em>) that don't resolve on CourtListener or
+              Google Scholar — a genuine test of the Find Hallucinations workflow, not a
+              hypothetical one.
+            </li>
+          </ul>
+          <div class="button-row">
+            <a class="primary" href="mata-v-avianca-filing.pdf" download>Download the example PDF</a>
+            <a class="secondary" href="pdf.html">Open PDF &amp; OCR Tools →</a>
+          </div>
+        </div>
+      </div>
+
+      <p class="helper-text">
+        Downloading and re-uploading this file never sends it anywhere except the optional,
+        opt-in CourtListener check described below — the same "nothing leaves your browser"
+        guarantee every page on this site makes.
+      </p>
+    </section>
+
+    <section class="oc-examples-section">
+      <h2>Citation Checker — check one or more citations fast</h2>
+      <p class="helper-text">Best for: quickly checking a citation or two, no document involved.</p>
+      <ol class="oc-steps">
+        <li>Pick a Bluebook edition from the dropdown.</li>
+        <li>Paste one or more citations into the text box, or upload a <code>.txt</code>/<code>.docx</code>/<code>.odt</code> file.</li>
+        <li>Click <strong>Check citations</strong> (or press Ctrl/Cmd+Enter).</li>
+      </ol>
+      <p>Try pasting this — one clean citation and one with a real, flagged formatting issue:</p>
+      <pre class="oc-code-block" id="example-citations">Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009)
+Smith v. Acme Company, 123 U.S. 456 (1990)</pre>
+      <div class="button-row">
+        <button type="button" class="secondary" data-copy-target="example-citations">Copy</button>
+        <a class="secondary" href="index.html">Open the Citation Checker →</a>
+      </div>
+      <p class="helper-text">
+        The second citation is intentionally flagged: Bluebook's Table T6 abbreviates "Company"
+        to "Co." in a case name, so the checker warns instead of passing it silently.
+      </p>
+    </section>
+
+    <section class="oc-examples-section">
+      <h2>Document Editor — work with a whole document</h2>
+      <p class="helper-text">Best for: a full brief or memo, on any screen size (including mobile).</p>
+      <ol class="oc-steps">
+        <li>Paste your document's text directly into the document pane, or load a <code>.txt</code>/<code>.docx</code>/<code>.odt</code>/<code>.pdf</code> file (try the example PDF above).</li>
+        <li><strong>Manage Hyperlinks</strong> — look citations up against a real provider (e.g. CourtListener) and hyperlink only the ones that resolve, or hand-assign URLs to other citations.</li>
+        <li><strong>Bluebook Check</strong> — checks mechanical formatting conventions and lists every issue found.</li>
+        <li><strong>Find Hallucinations</strong> — checks every case citation against the platforms you choose, in order, and flags any that don't resolve on any of them.</li>
+        <li><strong>Embed Cited Text</strong> — pulls in the actual cited page's text next to a pincite citation, so you can verify the quote without leaving the document.</li>
+        <li>Format with the toolbar (bold/italic/underline, headings, lists), then <strong>Download as .txt or .odt</strong>.</li>
+      </ol>
+      <a href="editor.html">Open the Document Editor →</a>
+    </section>
+
+    <section class="oc-examples-section">
+      <h2>OpenClerk Studio — the same tools, a richer desktop layout</h2>
+      <p class="helper-text">Best for: a larger screen (860px+) and a more desktop-app-like editing session.</p>
+      <p>
+        Studio runs the exact same Manage Hyperlinks / Bluebook Check / Find Hallucinations /
+        Embed Cited Text workflows as the Document Editor above, in a fuller layout: a document
+        outline you can click to jump between sections, a comment gutter that surfaces flagged
+        citations next to the text as you work, and a status bar with a live word count and
+        citation-health summary. Its File menu can load the example PDF above the same way, and
+        its Insert menu adds a generic "link this text to a URL" command for anything that isn't
+        a case citation.
+      </p>
+      <a href="studio.html">Open OpenClerk Studio →</a>
+    </section>
+
+    <section class="oc-examples-section">
+      <h2>PDF &amp; OCR Tools — extract and check citations from a PDF</h2>
+      <p class="helper-text">Best for: a PDF you don't want to retype, including scanned documents with no text layer.</p>
+      <ol class="oc-steps">
+        <li>Upload a PDF (try the example above — it has no embedded text layer, so it's a real test of the OCR fallback).</li>
+        <li>Optionally check the box to verify citations against CourtListener and flag any that don't resolve.</li>
+        <li>Click <strong>Extract &amp; check citations</strong>.</li>
+      </ol>
+      <a href="pdf.html">Open PDF &amp; OCR Tools →</a>
+    </section>
+
+    <section class="oc-examples-section">
+      <h2>Connecting a citation lookup provider (optional)</h2>
+      <p>
+        Manage Hyperlinks, Find Hallucinations, Embed Cited Text, and PDF &amp; OCR Tools'
+        verification checkbox all need a lookup provider to check a citation against real
+        case law. Today that's <a href="https://www.courtlistener.com/" target="_blank" rel="noopener noreferrer">CourtListener</a>,
+        a free service from the Free Law Project — sign up for a free account and grab an API
+        token from
+        <a href="https://www.courtlistener.com/profile/api-token/" target="_blank" rel="noopener noreferrer">courtlistener.com/profile/api-token</a>,
+        then paste it into any page's Manage Hyperlinks panel. Only the matched citation strings
+        are ever sent to CourtListener — never your document's text.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    Built on <a href="https://github.com/OpenClerkProject/openclerk-core">openclerk-core</a><span id="core-version" class="oc-core-version"></span>.
+  </footer>
+
+  <script src="examples-bundle.js"></script>
+</body>
+</html>
