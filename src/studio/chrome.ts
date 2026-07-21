@@ -413,8 +413,10 @@ function insertHyperlink(): void {
 // is new to declare.
 type StudioPdfPage = { pageNumber: number; text: string; source: "embedded" | "ocr" | "empty" };
 type ScribeProgress = { onProgress?: (message: string) => void };
+type ImportedHeading = { text: string; level: number };
 type ImportedPdf = {
   markdown: string;
+  headings: ImportedHeading[];
   stats: { pages: number; words: number; textNative: boolean; lowConfidenceWords: string[] };
 };
 interface ScribeApi {
@@ -537,8 +539,23 @@ function renderTable(rows: string[]): string {
   return `<table class="oc-import-table">${thead}<tbody>${tbody}</tbody></table>`;
 }
 
-/** Turns scribe's Markdown into editor block HTML: headings, tables, and paragraphs. */
-function markdownToHtml(markdown: string): string {
+/** Normalizes a line/heading to compare them: drops emphasis markers and collapses whitespace. */
+function normalizeHeadingKey(text: string): string {
+  return text.replace(/\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Turns scribe's Markdown into editor block HTML: headings, tables, and paragraphs.
+ * `headings` is scribe's layout-detected heading list (text + level); because scribe renders
+ * headings as plain bold lines in its Markdown rather than `#`, a fully-bold line whose text
+ * matches one of these becomes a real <hN> (feeding Studio's outline) instead of a bold paragraph.
+ */
+function markdownToHtml(markdown: string, headings: ImportedHeading[] = []): string {
+  const headingLevels = new Map<string, number>();
+  for (const h of headings) {
+    const key = normalizeHeadingKey(h.text);
+    if (key) headingLevels.set(key, Math.min(Math.max(h.level, 1), 3));
+  }
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: string[] = [];
   for (let i = 0; i < lines.length; i++) {
@@ -561,6 +578,17 @@ function markdownToHtml(markdown: string): string {
       const level = heading[1].length;
       blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
       continue;
+    }
+    // A line that is a single bold span (`**...**`, no other content) and whose text matches a
+    // layout-detected heading is rendered as <hN>. Anything else -- including ordinary bold lines
+    // scribe didn't classify as a heading -- falls through to normal rendering.
+    const boldLine = /^\*\*(.+)\*\*$/.exec(line.trim());
+    if (boldLine && !boldLine[1].includes("**")) {
+      const level = headingLevels.get(normalizeHeadingKey(boldLine[1]));
+      if (level) {
+        blocks.push(`<h${level}>${renderInlineMarkdown(boldLine[1])}</h${level}>`);
+        continue;
+      }
     }
     // Legal documents number their own paragraphs ("1. ...", "2. ..."), so a leading number is
     // kept as body text rather than turned into an <ol> that would renumber it. Only real "- "
@@ -654,15 +682,17 @@ async function handlePdfImport(event: Event): Promise<void> {
   try {
     setStudioStatus(`Importing "${file.name}" (OCR can take a while for scanned pages)...`);
     const scribe = await ensureScribe();
-    const { markdown, stats } = await scribe.importPdfData(file, { onProgress: setStudioStatus });
+    const { markdown, headings, stats } = await scribe.importPdfData(file, { onProgress: setStudioStatus });
 
-    doc.innerHTML = markdownToHtml(markdown);
+    doc.innerHTML = markdownToHtml(markdown, headings);
     highlightLowConfidence(doc, stats.lowConfidenceWords);
+    refreshOutline();
 
     const lowCount = stats.lowConfidenceWords.length;
     const lowNote = lowCount > 0 ? ` ${lowCount} low-confidence word(s) are highlighted -- verify them against the original.` : "";
+    const headingNote = headings.length > 0 ? ` ${headings.length} heading(s) detected.` : "";
     const kind = stats.textNative ? "text" : "OCR";
-    setStudioStatus(`Imported "${file.name}" (${stats.pages} page(s), ${stats.words.toLocaleString()} words, via ${kind}) with formatting preserved.${lowNote}`);
+    setStudioStatus(`Imported "${file.name}" (${stats.pages} page(s), ${stats.words.toLocaleString()} words, via ${kind}) with formatting preserved.${headingNote}${lowNote}`);
   } catch (error) {
     setStudioStatus(error instanceof Error ? error.message : String(error));
   }

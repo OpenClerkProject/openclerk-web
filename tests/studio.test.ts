@@ -373,6 +373,7 @@ describe("OpenClerk Studio chrome", () => {
         exportSearchablePdf: jest.fn().mockResolvedValue(new ArrayBuffer(64)),
         importPdfData: jest.fn().mockResolvedValue({
           markdown: "# Heading\n\nBody text.",
+          headings: [],
           stats: { pages: 1, words: 3, textNative: true, lowConfidenceWords: [] },
         }),
         convertPdfToDocx: jest.fn().mockResolvedValue(new ArrayBuffer(128)),
@@ -454,6 +455,7 @@ describe("OpenClerk Studio chrome", () => {
       seedScribe({
         importPdfData: jest.fn().mockResolvedValue({
           markdown: "**Damages Summary**\n\n| Category | Amount |\n| --- | --- |\n| Medical | $12,500 |",
+          headings: [],
           stats: { pages: 2, words: 40, textNative: false, lowConfidenceWords: [] },
         }),
       });
@@ -469,16 +471,52 @@ describe("OpenClerk Studio chrome", () => {
       await chrome.handlePdfImport({ target: input } as unknown as Event);
 
       const surface = documentSurface();
+      // No heading was detected for this bold line, so it stays a bold paragraph, not an <hN>.
       expect(surface.querySelector("b")!.textContent).toBe("Damages Summary");
+      expect(surface.querySelector("h1, h2, h3")).toBeNull();
       expect(surface.querySelector("table.oc-import-table")).not.toBeNull();
       expect(surface.querySelector("td")!.textContent).toBe("Medical");
       expect(document.getElementById("status")!.textContent).toMatch(/Imported "filing\.pdf" \(2 page\(s\), 40 words, via OCR\)/);
+    });
+
+    it("renders detected headings as <hN>, feeds the outline, and notes the count", async () => {
+      seedScribe({
+        importPdfData: jest.fn().mockResolvedValue({
+          markdown: "**Memorandum of Law**\n\nIntro paragraph.\n\n**Statement of Facts**\n\nThe facts.",
+          headings: [
+            { text: "Memorandum of Law", level: 1 },
+            { text: "Statement of Facts", level: 2 },
+          ],
+          stats: { pages: 1, words: 12, textNative: true, lowConfidenceWords: [] },
+        }),
+      });
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      const input = document.getElementById("stu-import-pdf-input") as HTMLInputElement;
+      Object.defineProperty(input, "files", {
+        value: [new File(["x"], "memo.pdf", { type: "application/pdf" })],
+        configurable: true,
+      });
+
+      await chrome.handlePdfImport({ target: input } as unknown as Event);
+
+      const surface = documentSurface();
+      expect(surface.querySelector("h1")!.textContent).toBe("Memorandum of Law");
+      expect(surface.querySelector("h2")!.textContent).toBe("Statement of Facts");
+      // The bold-line headings became real <hN>, not bold paragraphs.
+      expect(surface.querySelector("b")).toBeNull();
+      // The detected headings flow into the document outline.
+      const outline = Array.from(document.querySelectorAll(".stu-outline-item")).map((el) => el.textContent);
+      expect(outline).toEqual(["Memorandum of Law", "Statement of Facts"]);
+      expect(document.getElementById("status")!.textContent).toContain("2 heading(s) detected");
     });
 
     it("highlights low-confidence words reported by the import", async () => {
       seedScribe({
         importPdfData: jest.fn().mockResolvedValue({
           markdown: "The AVIANCA appeal and the Affirma statement.",
+          headings: [],
           stats: { pages: 1, words: 7, textNative: false, lowConfidenceWords: ["AVIANCA", "Affirma"] },
         }),
       });
@@ -543,6 +581,34 @@ describe("OpenClerk Studio chrome", () => {
     it("escapes HTML in the source text", () => {
       const { markdownToHtml } = require("../src/studio/chrome");
       expect(markdownToHtml("a < b & c > d")).toContain("a &lt; b &amp; c &gt; d");
+    });
+
+    it("promotes a bold line to <hN> when it matches a detected heading", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml(
+        "**Memorandum of Law**\n\n**Statement of Facts**\n\nBody.",
+        [
+          { text: "Memorandum of Law", level: 1 },
+          { text: "Statement of Facts", level: 2 },
+        ],
+      );
+      expect(html).toContain("<h1>Memorandum of Law</h1>");
+      expect(html).toContain("<h2>Statement of Facts</h2>");
+      expect(html).toContain("<p>Body.</p>");
+      expect(html).not.toContain("<b>");
+    });
+
+    it("leaves a bold line as a bold paragraph when it is not a detected heading", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml("**Not a heading**", [{ text: "Statement of Facts", level: 2 }]);
+      expect(html).toContain("<p><b>Not a heading</b></p>");
+      expect(html).not.toContain("<h");
+    });
+
+    it("clamps a detected heading level into the h1-h3 range", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml("**Deep Heading**", [{ text: "Deep Heading", level: 7 }]);
+      expect(html).toContain("<h3>Deep Heading</h3>");
     });
   });
 

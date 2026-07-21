@@ -145,11 +145,18 @@ several things the tesseract.js-based PDF & OCR Tools page can't do:
 - **Better OCR accuracy** when you load a scanned PDF via *File → Load from file* — scribe's
   custom model recovers more text than Tesseract's default engine.
 - **Style-preserving import** — *File → "Import PDF (keep formatting)…"* OCRs a PDF and brings it
-  into the editable document with **headings, bold/italic, and tables preserved** (imported
+  into the editable document with **headings, bold/italic, and tables preserved** (detected
   headings feed the document outline; tables come in as real `<table>`s), instead of flattening to
   plain text. It's built from scribe's Markdown rendering (`markdownToHtml` in `studio/chrome.ts`),
   which is the clean semantic source — scribe's own HTML export is an absolute-positioned visual
   page reproduction, unusable for a contenteditable.
+- **Heading detection** — scribe's Markdown emits headings as plain bold lines (no `#` markers), so
+  headings are detected from its *layout model* instead: `scribe-loader.mjs` takes the paragraphs
+  scribe classifies as `par.type === 'title'` that are genuinely larger than the body text, and
+  ranks their font sizes into levels (largest → `h1`, next → `h2`, smaller → `h3`). `markdownToHtml`
+  promotes the matching bold lines to real `<hN>` tags, which flow straight into the document
+  outline. The "larger than body" guard keeps it conservative — a scanned filing with no
+  distinctly-sized headings detects none rather than inventing false ones.
 - **Low-confidence flagging** — after an import, the words scribe was least sure about (its genuine
   OCR garbles, e.g. a misread case name) are **highlighted in red** for you to verify against the
   original. Only *distinctive* low-confidence tokens are flagged (an alphanumeric core of ≥ 5, or

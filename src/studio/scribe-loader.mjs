@@ -90,6 +90,66 @@ function isDistinctiveToken(text) {
   return /[A-Za-z]/.test(core) && (core.length >= 5 || /[0-9]/.test(core));
 }
 
+function medianOf(nums) {
+  if (!nums.length) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// A paragraph's representative font size: the median of its words' sizes (scribe reports a per-word
+// style.size in its own units, exact for text-native PDFs and estimated for OCR'd scans).
+function parFontSize(par) {
+  const sizes = [];
+  for (const line of par.lines || []) {
+    for (const word of line.words || []) {
+      if (typeof word.style?.size === "number") sizes.push(word.style.size);
+    }
+  }
+  return medianOf(sizes);
+}
+
+function parText(par) {
+  return (par.lines || [])
+    .map((line) => (line.words || []).map((word) => word.text).join(" "))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Detects heading paragraphs so the import comes in structured (headings feed Studio's outline)
+// rather than as one flat run of paragraphs. scribe's Markdown export renders headings as plain
+// bold lines -- it emits no `#` markers -- so the heading signal has to come from its layout model:
+// scribe classifies headings as par.type === 'title' (verified against real documents) and reports
+// each word's font size. We take the title paragraphs that are genuinely larger than the body text
+// (a guard against a same-size line scribe happened to tag as a title) and rank their sizes to pick
+// levels: the largest heading size becomes h1, the next h2, and anything smaller h3. The caller
+// (studio/chrome.ts) matches these against the bold lines in the Markdown to emit real <hN> tags.
+function collectHeadings(doc) {
+  const titles = [];
+  const bodySizes = [];
+  for (const page of doc.ocr?.active || []) {
+    for (const par of page.pars || []) {
+      const size = parFontSize(par);
+      if (par.type === "title") {
+        const text = parText(par);
+        if (text) titles.push({ text, size });
+      } else if (size > 0) {
+        bodySizes.push(size);
+      }
+    }
+  }
+  if (!titles.length) return [];
+  const bodyMedian = medianOf(bodySizes);
+  const headings = titles.filter((h) => !bodyMedian || h.size >= bodyMedian * 1.08);
+  if (!headings.length) return [];
+  const distinctSizes = [...new Set(headings.map((h) => Math.round(h.size)))].sort((a, b) => b - a);
+  return headings.map((h) => ({
+    text: h.text,
+    level: Math.min(distinctSizes.indexOf(Math.round(h.size)) + 1, 3),
+  }));
+}
+
 // Collects the distinct, distinctive word strings scribe was least sure about, from its OCR model
 // (doc.ocr.active -> pars -> lines -> words, each carrying a .conf). The caller (studio/chrome.ts)
 // highlights occurrences of these in the imported document.
@@ -123,8 +183,10 @@ async function importPdfData(file, options = {}) {
     onProgress?.("Formatting the recognized text...");
     const markdown = await doc.exportData("md");
     const { lowConfidenceWords, wordCount } = collectLowConfidenceWords(doc);
+    const headings = collectHeadings(doc);
     return {
       markdown: typeof markdown === "string" ? markdown : "",
+      headings,
       stats: {
         pages: doc.inputData?.pageCount ?? 0,
         words: wordCount,
