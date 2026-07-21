@@ -37,8 +37,33 @@
         <div class="stu-appbar-titleblock">
           <div id="stu-doc-title" class="stu-appbar-title" contenteditable="true" spellcheck="false">Untitled document</div>
           <div class="stu-menubar">
-            <span class="stu-menu-inert" title="No Edit-menu options exist in this app yet">Edit</span>
-            <span class="stu-menu-inert" title="No View options exist in this app yet">View</span>
+            <span class="stu-menu-wrap">
+              <button type="button" class="stu-menu-trigger" id="stu-edit-menu-trigger" aria-haspopup="true" aria-expanded="false">Edit ▾</button>
+              <div class="stu-dropdown" id="stu-edit-menu" role="menu">
+                <button type="button" class="stu-dropdown-item" id="stu-edit-undo" role="menuitem">
+                  <span class="stu-dropdown-icon">&#8630;</span>Undo
+                </button>
+                <button type="button" class="stu-dropdown-item" id="stu-edit-redo" role="menuitem">
+                  <span class="stu-dropdown-icon">&#8631;</span>Redo
+                </button>
+                <div class="stu-dropdown-divider"></div>
+                <button type="button" class="stu-dropdown-item" id="stu-edit-select-all" role="menuitem">
+                  <span class="stu-dropdown-icon">&#9635;</span>Select all
+                </button>
+              </div>
+            </span>
+
+            <span class="stu-menu-wrap">
+              <button type="button" class="stu-menu-trigger" id="stu-view-menu-trigger" aria-haspopup="true" aria-expanded="false">View ▾</button>
+              <div class="stu-dropdown" id="stu-view-menu" role="menu">
+                <button type="button" class="stu-dropdown-item" id="stu-view-toggle-outline" role="menuitemcheckbox" aria-checked="true">
+                  <span class="stu-dropdown-icon" data-check>&#10003;</span>Document outline
+                </button>
+                <button type="button" class="stu-dropdown-item" id="stu-view-toggle-gutter" role="menuitemcheckbox" aria-checked="true">
+                  <span class="stu-dropdown-icon" data-check>&#10003;</span>Comment gutter
+                </button>
+              </div>
+            </span>
 
             <span class="stu-menu-wrap">
               <button type="button" class="stu-menu-trigger" id="stu-file-menu-trigger" aria-haspopup="true" aria-expanded="false">File ▾</button>
@@ -137,7 +162,7 @@
     <div class="stu-workspace">
 
       <!-- LEFT: OUTLINE -->
-      <div class="stu-outline">
+      <div class="stu-outline" id="stu-outline">
         <div class="stu-outline-header">Document Outline</div>
         <nav class="stu-outline-list oc-scroll" id="stu-outline-list" aria-label="Document outline"></nav>
         <div class="stu-outline-health">

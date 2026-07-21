@@ -675,6 +675,12 @@ body.stu-body {
   border: 0;
 }
 
+/* Toggled by the View menu (Document outline / Comment gutter). !important so it beats the
+   layout classes' own `display: flex`/`block` -- the elements it hides are flex/grid containers. */
+.stu-hidden {
+  display: none !important;
+}
+
 /* ---- App bar ---- */
 
 .stu-appbar {

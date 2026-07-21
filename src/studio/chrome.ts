@@ -399,14 +399,68 @@ function insertHyperlink(): void {
   setStudioStatus("Hyperlink added.");
 }
 
+// ---- Edit menu ----
+// Undo/Redo forward to the existing formatting-toolbar buttons rather than calling execCommand
+// directly, so the (jsdom-guarded) execCommand handling in formatting.ts stays the single source
+// of truth. Select all uses the Selection API on the document surface.
+
+function selectAllDocument(): void {
+  const doc = $("document-surface");
+  if (!doc) {
+    return;
+  }
+  doc.focus();
+  const range = document.createRange();
+  range.selectNodeContents(doc);
+  const selection = document.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function wireEditMenu(): void {
+  $("stu-edit-undo")?.addEventListener("click", () => $("format-undo-button")?.click());
+  $("stu-edit-redo")?.addEventListener("click", () => $("format-redo-button")?.click());
+  $("stu-edit-select-all")?.addEventListener("click", selectAllDocument);
+}
+
+// ---- View menu ----
+// Toggles the visibility of the outline sidebar and the comment gutter, giving the document more
+// room. Each item is a menuitemcheckbox: its aria-checked and leading checkmark reflect whether
+// the panel is currently shown.
+
+function toggleView(panelId: string, buttonId: string): void {
+  const panel = $(panelId);
+  const button = $(buttonId);
+  if (!panel) {
+    return;
+  }
+  const nowHidden = panel.classList.toggle("stu-hidden");
+  button?.setAttribute("aria-checked", String(!nowHidden));
+  const check = button?.querySelector<HTMLElement>("[data-check]");
+  if (check) {
+    // U+2713 check mark when shown, nothing when hidden (kept in a fixed-width icon slot so the
+    // label doesn't shift).
+    check.textContent = nowHidden ? "" : "✓";
+  }
+}
+
+function wireViewMenu(): void {
+  $("stu-view-toggle-outline")?.addEventListener("click", () => toggleView("stu-outline", "stu-view-toggle-outline"));
+  $("stu-view-toggle-gutter")?.addEventListener("click", () => toggleView("stu-gutter", "stu-view-toggle-gutter"));
+}
+
 // ---- Wiring ----
 
 function init(): void {
+  wireDropdown("stu-edit-menu-trigger", "stu-edit-menu");
+  wireDropdown("stu-view-menu-trigger", "stu-view-menu");
   wireDropdown("stu-file-menu-trigger", "stu-file-menu");
   wireDropdown("stu-cite-menu-trigger", "stu-cite-menu");
   wireDropdown("stu-insert-menu-trigger", "stu-insert-menu");
   document.addEventListener("click", closeAllDropdowns);
   wireCitationsMenu();
+  wireEditMenu();
+  wireViewMenu();
   $("stu-insert-hyperlink")?.addEventListener("click", insertHyperlink);
   openWorkflow("manage-hyperlinks");
   closeWorkflow();
@@ -446,4 +500,14 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, openWorkflow, closeWorkflow, refreshOutline, refreshWordCount, refreshHealthAndGutter, insertHyperlink };
+export {
+  init,
+  openWorkflow,
+  closeWorkflow,
+  refreshOutline,
+  refreshWordCount,
+  refreshHealthAndGutter,
+  insertHyperlink,
+  selectAllDocument,
+  toggleView,
+};
