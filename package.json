@@ -17,9 +17,11 @@
     "jszip": "^3.10.1",
     "openclerk-core": "github:OpenClerkProject/openclerk-core#v0.2.7",
     "pdfjs-dist": "^4.6.82",
+    "scribe.js-ocr": "^0.14.0-0",
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "@types/jest": "^29.0.0",
     "@types/jszip": "^3.4.0",
     "@types/node": "^20.0.0",
