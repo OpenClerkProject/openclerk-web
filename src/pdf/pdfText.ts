@@ -80,7 +80,10 @@ async function ocrPage(page: pdfjsLib.PDFPageProxy, worker: TesseractWorker): Pr
  * than scanned), falling back to tesseract.js OCR for any page whose text layer is empty or
  * near-empty (a scanned/image-only page).
  */
-export async function extractPdfText(file: File, options: ExtractPdfTextOptions = {}): Promise<PageExtraction[]> {
+export async function extractPdfText(
+  file: File,
+  options: ExtractPdfTextOptions = {},
+): Promise<PageExtraction[]> {
   const ocrEnabled = options.ocr !== false;
 
   const data = new Uint8Array(await file.arrayBuffer());
@@ -93,7 +96,9 @@ export async function extractPdfText(file: File, options: ExtractPdfTextOptions 
       options.onProgress?.(`Reading page ${pageNumber} of ${doc.numPages}...`);
       const page = await doc.getPage(pageNumber);
       const content = await page.getTextContent();
-      const embeddedText = normalizeExtractedText(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+      const embeddedText = normalizeExtractedText(
+        content.items.map((item) => ("str" in item ? item.str : "")).join(" "),
+      );
 
       if (embeddedText.replace(/\s/g, "").length >= MIN_EMBEDDED_TEXT_LENGTH) {
         pages.push({ pageNumber, text: embeddedText, source: "embedded" });
@@ -105,7 +110,9 @@ export async function extractPdfText(file: File, options: ExtractPdfTextOptions 
         continue;
       }
 
-      options.onProgress?.(`Page ${pageNumber}: no embedded text layer, running OCR (this can take a while)...`);
+      options.onProgress?.(
+        `Page ${pageNumber}: no embedded text layer, running OCR (this can take a while)...`,
+      );
       ocrWorker ??= await createOcrWorker(options.onProgress);
       const ocrText = normalizeExtractedText(await ocrPage(page, ocrWorker));
       pages.push({ pageNumber, text: ocrText, source: "ocr" });

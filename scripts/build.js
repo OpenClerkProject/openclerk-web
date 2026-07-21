@@ -1,6 +1,6 @@
 const esbuild = require("esbuild");
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
 const OUT_DIR = path.join(ROOT, "dist");
@@ -62,13 +62,18 @@ const SCRIBE_VENDOR_ENTRIES = ["scribe.js", "js", "lib", "tess", "fonts"];
 // jsdelivr CDN -- keeps OCR fully within the browser (nothing fetched from a third party), and is
 // what scribe-loader.mjs points opt.langPath at. Sourced from the @tesseract.js-data/eng package
 // (a devDependency), the exact same data scribe's CDN default would otherwise serve.
-const SCRIBE_LANG_FROM = path.join(ROOT, "node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz");
+const SCRIBE_LANG_FROM = path.join(
+  ROOT,
+  "node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz",
+);
 const SCRIBE_LANG_OUT = path.join(OUT_DIR, "scribe-lang", "eng.traineddata.gz");
 
 // Read directly from the installed package rather than this project's own package.json, so the
 // UI reflects whatever openclerk-core build actually got bundled (its git ref is a tag, not an
 // exact pin -- see README's stale-lockfile note) rather than just the declared dependency range.
-const openclerkCoreVersion = require(path.join(ROOT, "node_modules/openclerk-core/package.json")).version;
+const openclerkCoreVersion = require(
+  path.join(ROOT, "node_modules/openclerk-core/package.json"),
+).version;
 
 async function build() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -108,7 +113,8 @@ async function build() {
 // present (the ~60 MB copy is the slowest part of a build, and node_modules doesn't change between
 // rebuilds) unless OPENCLERK_REVENDOR_SCRIBE is set to force a refresh.
 function vendorScribe() {
-  const alreadyVendored = fs.existsSync(path.join(SCRIBE_OUT, "scribe.js")) && fs.existsSync(SCRIBE_LANG_OUT);
+  const alreadyVendored =
+    fs.existsSync(path.join(SCRIBE_OUT, "scribe.js")) && fs.existsSync(SCRIBE_LANG_OUT);
   if (alreadyVendored && !process.env.OPENCLERK_REVENDOR_SCRIBE) {
     return;
   }

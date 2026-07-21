@@ -315,12 +315,26 @@ and how this file has been verified so far.
 
 ```bash
 npm install
-npm test          # jest + jsdom — exercises the actual DOM wiring, not just openclerk-core's own logic
-npm run lint       # tsc --noEmit
+npm test           # jest + jsdom — exercises the actual DOM wiring, not just openclerk-core's own logic
+npm run typecheck  # tsc --noEmit
+npm run lint       # biome check . — linter + formatter check + import sorting
+npm run format     # biome check --write . — auto-fix + reformat in place
 npm run build      # bundles src/ -> dist/
 ```
 
 Then open `dist/index.html` directly in a browser, or serve it locally (e.g. `npx serve dist`).
+
+Tooling notes:
+
+- **[Biome](https://biomejs.dev)** is the linter/formatter (one Rust binary, config in `biome.json`).
+  Type-checking stays a separate step (`tsc --noEmit`) since Biome doesn't type-check; CI runs
+  `typecheck`, `lint`, and `build`. Two rules are turned off in `biome.json` because they fight
+  deliberate patterns here — `noNonNullAssertion` (pervasive in DOM/test code) and `noForEach`
+  (idiomatic throughout).
+- **Jest** covers the example-based DOM tests; **[fast-check](https://fast-check.dev)** adds
+  property-based tests (`tests/properties.test.ts`) that fuzz the untrusted-input helpers —
+  `markdownToHtml` must never inject live markup from OCR/import text, and `highlightLowConfidence`
+  must never alter the document's actual text.
 
 ### If `npm install` fails on `openclerk-core`
 

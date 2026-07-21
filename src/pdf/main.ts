@@ -1,12 +1,12 @@
 import {
+  type CitationCluster,
+  checkCitationsForHallucinations,
+  citationProviderRegistry,
   clusterCitationTokens,
   extractCitationTokens,
   findOrphanedCitations,
-  checkCitationsForHallucinations,
-  citationProviderRegistry,
-  CitationCluster,
 } from "openclerk-core";
-import { extractPdfText, PageExtraction } from "./pdfText";
+import { type PageExtraction, extractPdfText } from "./pdfText";
 
 interface CitationReportEntry {
   cluster: CitationCluster;
@@ -21,7 +21,10 @@ function setStatus(message: string): void {
 // Disables `btn` (+ aria-busy) for the duration of `action` -- extraction can run long (OCR falls
 // back per page with no embedded text layer), and without this a second click mid-run could kick
 // off overlapping work. Same pattern as editor/main.ts's withBusyButton.
-async function withBusyButton(btn: HTMLButtonElement | null, action: () => Promise<void>): Promise<void> {
+async function withBusyButton(
+  btn: HTMLButtonElement | null,
+  action: () => Promise<void>,
+): Promise<void> {
   if (btn) {
     btn.disabled = true;
     btn.setAttribute("aria-busy", "true");
@@ -39,7 +42,7 @@ async function withBusyButton(btn: HTMLButtonElement | null, action: () => Promi
 function handlePdfFileSelected(): void {
   const fileInput = document.getElementById("pdf-input") as HTMLInputElement;
   const statusEl = document.getElementById("pdf-file-status");
-  const file = fileInput.files && fileInput.files[0];
+  const file = fileInput.files?.[0];
   if (statusEl) {
     statusEl.textContent = file ? `Selected "${file.name}".` : "";
   }
@@ -109,7 +112,7 @@ async function runExtraction(): Promise<void> {
   const fileInput = document.getElementById("pdf-input") as HTMLInputElement;
   const verifyCheckbox = document.getElementById("verify-checkbox") as HTMLInputElement;
   const tokenInput = document.getElementById("courtlistener-token") as HTMLInputElement;
-  const file = fileInput.files && fileInput.files[0];
+  const file = fileInput.files?.[0];
 
   if (!file) {
     setStatus("Choose a PDF file first.");
@@ -124,7 +127,9 @@ async function runExtraction(): Promise<void> {
   try {
     pages = await extractPdfText(file, { onProgress: setStatus });
   } catch (error) {
-    setStatus(`Could not read this file as a PDF. ${error instanceof Error ? error.message : String(error)}`);
+    setStatus(
+      `Could not read this file as a PDF. ${error instanceof Error ? error.message : String(error)}`,
+    );
     return;
   }
 
@@ -155,7 +160,9 @@ async function runExtraction(): Promise<void> {
         nameMismatch: results[index].nameMismatch,
       }));
     } catch (error) {
-      setStatus(`Could not verify against CourtListener. ${error instanceof Error ? error.message : String(error)}`);
+      setStatus(
+        `Could not verify against CourtListener. ${error instanceof Error ? error.message : String(error)}`,
+      );
       renderCitations(entries, orphaned.length);
       return;
     }
@@ -165,7 +172,7 @@ async function runExtraction(): Promise<void> {
   setStatus(
     verify
       ? `Found ${clusters.length} case citation(s); ${flaggedCount} could not be verified via CourtListener.`
-      : `Found ${clusters.length} case citation(s).`
+      : `Found ${clusters.length} case citation(s).`,
   );
   renderCitations(entries, orphaned.length);
 }
@@ -179,7 +186,10 @@ function init(): void {
   document
     .getElementById("extract-button")!
     .addEventListener("click", () =>
-      withBusyButton(document.getElementById("extract-button") as HTMLButtonElement | null, runExtraction)
+      withBusyButton(
+        document.getElementById("extract-button") as HTMLButtonElement | null,
+        runExtraction,
+      ),
     );
 }
 

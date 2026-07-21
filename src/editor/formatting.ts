@@ -73,11 +73,21 @@ function updateToolbarState(root: HTMLElement): void {
 export function initFormattingToolbar(root: HTMLElement): void {
   document.getElementById("format-bold-button")?.addEventListener("click", () => exec("bold"));
   document.getElementById("format-italic-button")?.addEventListener("click", () => exec("italic"));
-  document.getElementById("format-underline-button")?.addEventListener("click", () => exec("underline"));
-  document.getElementById("format-bullet-list-button")?.addEventListener("click", () => exec("insertUnorderedList"));
-  document.getElementById("format-numbered-list-button")?.addEventListener("click", () => exec("insertOrderedList"));
-  document.getElementById("format-align-left-button")?.addEventListener("click", () => exec("justifyLeft"));
-  document.getElementById("format-align-justify-button")?.addEventListener("click", () => exec("justifyFull"));
+  document
+    .getElementById("format-underline-button")
+    ?.addEventListener("click", () => exec("underline"));
+  document
+    .getElementById("format-bullet-list-button")
+    ?.addEventListener("click", () => exec("insertUnorderedList"));
+  document
+    .getElementById("format-numbered-list-button")
+    ?.addEventListener("click", () => exec("insertOrderedList"));
+  document
+    .getElementById("format-align-left-button")
+    ?.addEventListener("click", () => exec("justifyLeft"));
+  document
+    .getElementById("format-align-justify-button")
+    ?.addEventListener("click", () => exec("justifyFull"));
   document.getElementById("format-undo-button")?.addEventListener("click", () => exec("undo"));
   document.getElementById("format-redo-button")?.addEventListener("click", () => exec("redo"));
 

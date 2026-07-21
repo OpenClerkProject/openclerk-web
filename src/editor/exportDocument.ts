@@ -2,20 +2,15 @@ import JSZip from "jszip";
 import { getPlainText } from "./dom";
 import {
   CASE_HYPERLINK_CLASS,
-  PARENTHETICAL_HYPERLINK_CLASS,
-  MANUAL_HYPERLINK_CLASS,
-  EMBED_NOTE_CLASS,
   EMBED_EXCERPT_CLASS,
+  EMBED_NOTE_CLASS,
+  MANUAL_HYPERLINK_CLASS,
+  PARENTHETICAL_HYPERLINK_CLASS,
 } from "./markers";
 
 const ODT_MIME_TYPE = "application/vnd.oasis.opendocument.text";
 
-const MANIFEST_XML =
-  `<?xml version="1.0" encoding="UTF-8"?>\n` +
-  `<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">` +
-  `<manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="${ODT_MIME_TYPE}"/>` +
-  `<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>` +
-  `</manifest:manifest>`;
+const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8"?>\n<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2"><manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="${ODT_MIME_TYPE}"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>`;
 
 // Named text styles referenced via text:style-name below, for the formatting toolbar's bold/
 // italic/underline (see formatting.ts) -- ODF requires styles used this way to be declared
@@ -26,18 +21,18 @@ const MANIFEST_XML =
 // all, since an unstyled text:list already renders as bulleted in every ODF-conformant reader
 // tested against (see README.md's LibreOffice round-trip note).
 const AUTOMATIC_STYLES_XML =
-  `<office:automatic-styles>` +
+  "<office:automatic-styles>" +
   `<style:style style:name="Bold" style:family="text"><style:text-properties fo:font-weight="bold"/></style:style>` +
   `<style:style style:name="Italic" style:family="text"><style:text-properties fo:font-style="italic"/></style:style>` +
   `<style:style style:name="Underline" style:family="text">` +
   `<style:text-properties style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color"/>` +
-  `</style:style>` +
+  "</style:style>" +
   `<text:list-style style:name="OrderedList">` +
   `<text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix=".">` +
   `<style:list-level-properties text:list-level-position-and-space-mode="label-alignment"/>` +
-  `</text:list-level-style-number>` +
-  `</text:list-style>` +
-  `</office:automatic-styles>`;
+  "</text:list-level-style-number>" +
+  "</text:list-style>" +
+  "</office:automatic-styles>";
 
 /** Plain-text export of the document surface -- just what's already used to scan for citations. */
 export function buildPlainTextExport(root: HTMLElement): string {
@@ -53,7 +48,13 @@ function escapeXml(value: string): string {
 }
 
 const HYPERLINK_SELECTOR = `a.${CASE_HYPERLINK_CLASS}, a.${PARENTHETICAL_HYPERLINK_CLASS}, a.${MANUAL_HYPERLINK_CLASS}`;
-const INLINE_STYLE_TAGS: Record<string, string> = { B: "Bold", STRONG: "Bold", I: "Italic", EM: "Italic", U: "Underline" };
+const INLINE_STYLE_TAGS: Record<string, string> = {
+  B: "Bold",
+  STRONG: "Bold",
+  I: "Italic",
+  EM: "Italic",
+  U: "Underline",
+};
 
 // Walks one block element's inline content into ODF content.xml markup: hyperlinks become
 // <text:a>, bold/italic/underline become <text:span> referencing one of the automatic styles
@@ -103,7 +104,9 @@ function listToOdtXml(list: HTMLElement): string {
   const styleAttr = list.tagName === "OL" ? ` text:style-name="OrderedList"` : "";
   const items = Array.from(list.children)
     .filter((el): el is HTMLElement => el instanceof HTMLElement && el.tagName === "LI")
-    .map((item) => `<text:list-item><text:p>${inlineContentToOdtXml(item)}</text:p></text:list-item>`)
+    .map(
+      (item) => `<text:list-item><text:p>${inlineContentToOdtXml(item)}</text:p></text:list-item>`,
+    )
     .join("");
   return `<text:list${styleAttr}>${items}</text:list>`;
 }
@@ -123,22 +126,12 @@ function blockToOdtXml(block: HTMLElement): string {
 }
 
 function buildOdtContentXml(root: HTMLElement): string {
-  const topLevelBlocks = Array.from(root.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
+  const topLevelBlocks = Array.from(root.children).filter(
+    (el): el is HTMLElement => el instanceof HTMLElement,
+  );
   const blocks = (topLevelBlocks.length > 0 ? topLevelBlocks : [root]).map(blockToOdtXml).join("");
 
-  return (
-    `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<office:document-content ` +
-    `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
-    `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" ` +
-    `xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ` +
-    `xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ` +
-    `xmlns:xlink="http://www.w3.org/1999/xlink" ` +
-    `office:version="1.2">` +
-    AUTOMATIC_STYLES_XML +
-    `<office:body><office:text>${blocks}</office:text></office:body>` +
-    `</office:document-content>`
-  );
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.2">${AUTOMATIC_STYLES_XML}<office:body><office:text>${blocks}</office:text></office:body></office:document-content>`;
 }
 
 /**

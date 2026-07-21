@@ -28,7 +28,8 @@
 
   --font-display: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Iowan Old Style", serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New",
+    monospace;
 
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -36,7 +37,9 @@
 
 /* ---- Reset / base ---- */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 

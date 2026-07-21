@@ -11,7 +11,9 @@
     "build": "node scripts/build.js",
     "watch": "node scripts/build.js --watch",
     "test": "jest",
-    "lint": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "jszip": "^3.10.1",
@@ -21,11 +23,13 @@
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@tesseract.js-data/eng": "^1.0.0",
     "@types/jest": "^29.0.0",
     "@types/jszip": "^3.4.0",
     "@types/node": "^20.0.0",
     "esbuild": "^0.23.0",
+    "fast-check": "^3.23.2",
     "jest": "^29.0.0",
     "jest-environment-jsdom": "^29.0.0",
     "ts-jest": "^29.0.0",

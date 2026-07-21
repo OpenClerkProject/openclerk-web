@@ -54,9 +54,17 @@ brought a negligence claim against Delta Airlines in Texas state court.
 function installCourtListenerFetchMock(knownCaseNames: string[]): jest.Mock {
   const fetchMock = jest.fn(async (_url: string, init: RequestInit) => {
     const body = String(init.body);
-    const matchedName = knownCaseNames.find((name) => body.includes(encodeURIComponent(name).replace(/%20/g, "+")));
+    const matchedName = knownCaseNames.find((name) =>
+      body.includes(encodeURIComponent(name).replace(/%20/g, "+")),
+    );
     const responseBody = matchedName
-      ? [{ status: 200, citation: matchedName, clusters: [{ case_name: matchedName, absolute_url: "/opinion/1/x/" }] }]
+      ? [
+          {
+            status: 200,
+            citation: matchedName,
+            clusters: [{ case_name: matchedName, absolute_url: "/opinion/1/x/" }],
+          },
+        ]
       : [{ status: 404, clusters: [] }];
     return { ok: true, status: 200, json: async () => responseBody } as Response;
   });
@@ -72,7 +80,9 @@ describe("openclerk-web PDF & OCR tools page", () => {
   });
 
   it("extracts and reports case citations from the recovered PDF text", async () => {
-    mockExtractPdfText.mockResolvedValue([{ pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" }]);
+    mockExtractPdfText.mockResolvedValue([
+      { pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" },
+    ]);
 
     const { runExtraction } = require("../src/pdf/main");
     selectFile(new File(["dummy"], "filing.pdf", { type: "application/pdf" }));
@@ -86,7 +96,9 @@ describe("openclerk-web PDF & OCR tools page", () => {
   });
 
   it("flags the two fabricated citations as unverified when checked against CourtListener", async () => {
-    mockExtractPdfText.mockResolvedValue([{ pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" }]);
+    mockExtractPdfText.mockResolvedValue([
+      { pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" },
+    ]);
     installCourtListenerFetchMock(["Ehrlich v. American Airlines, Inc."]);
 
     const { runExtraction } = require("../src/pdf/main");
@@ -109,13 +121,17 @@ describe("openclerk-web PDF & OCR tools page", () => {
   // (caseNamesMatch); this confirms the fix is actually wired up on this page, not just in core's
   // own test suite.
   it("does not verify a fabricated case name when its citation locator resolves to a real, different case", async () => {
-    mockExtractPdfText.mockResolvedValue([{ pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" }]);
+    mockExtractPdfText.mockResolvedValue([
+      { pageNumber: 1, text: MATA_FILING_EXCERPT, source: "ocr" },
+    ]);
     const fetchMock = jest.fn(async () => {
       const responseBody = [
         {
           status: 200,
           citation: "match",
-          clusters: [{ case_name: "Peterson v. Islamic Republic of Iran", absolute_url: "/opinion/1/x/" }],
+          clusters: [
+            { case_name: "Peterson v. Islamic Republic of Iran", absolute_url: "/opinion/1/x/" },
+          ],
         },
       ];
       return { ok: true, status: 200, json: async () => responseBody } as Response;
@@ -130,7 +146,9 @@ describe("openclerk-web PDF & OCR tools page", () => {
 
     const resultsText = document.getElementById("results")!.textContent || "";
     expect(resultsText).not.toMatch(/Peterson v\. Iran Air[\s\S]*Verified via/);
-    expect(resultsText).toMatch(/Peterson v\. Iran Air[\s\S]*resolves this citation to a different case/);
+    expect(resultsText).toMatch(
+      /Peterson v\. Iran Air[\s\S]*resolves this citation to a different case/,
+    );
     expect(resultsText).toMatch(/Islamic Republic of Iran/);
   });
 
@@ -142,12 +160,16 @@ describe("openclerk-web PDF & OCR tools page", () => {
   });
 
   it("reports when no citations are found", async () => {
-    mockExtractPdfText.mockResolvedValue([{ pageNumber: 1, text: "No case law here at all.", source: "embedded" }]);
+    mockExtractPdfText.mockResolvedValue([
+      { pageNumber: 1, text: "No case law here at all.", source: "embedded" },
+    ]);
 
     const { runExtraction } = require("../src/pdf/main");
     selectFile(new File(["dummy"], "filing.pdf", { type: "application/pdf" }));
     await runExtraction();
 
-    expect(document.getElementById("status")!.textContent).toContain("No case citations were found");
+    expect(document.getElementById("status")!.textContent).toContain(
+      "No case citations were found",
+    );
   });
 });

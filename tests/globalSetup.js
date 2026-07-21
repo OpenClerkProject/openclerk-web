@@ -13,8 +13,8 @@
 // broken -- moves it out of the way so `require.resolve("canvas")` fails cleanly and jsdom falls
 // back to its already-supported "canvas not installed" path, exactly as it does for the majority
 // of jsdom/jest users who never install the optional `canvas` package at all.
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 module.exports = async function globalSetup() {
   const canvasDir = path.join(__dirname, "..", "node_modules", "canvas");
@@ -39,6 +39,6 @@ module.exports = async function globalSetup() {
     "[tests/globalSetup] `canvas`'s native binding failed to load -- moved node_modules/canvas " +
       "aside for this test run so jsdom falls back to running without it (safe: no test here " +
       "relies on real canvas rendering). Re-run `npm install` to restore it once a working " +
-      "prebuilt binary or full native build toolchain is available."
+      "prebuilt binary or full native build toolchain is available.",
   );
 };

@@ -68,9 +68,15 @@ function buildFuzzyMatcher(target: string): RegExp {
   return new RegExp(pattern, "gi");
 }
 
-function spanAtIndex(spans: TextNodeSpan[], index: number, preferEnd: boolean): TextNodeSpan | null {
+function spanAtIndex(
+  spans: TextNodeSpan[],
+  index: number,
+  preferEnd: boolean,
+): TextNodeSpan | null {
   for (const span of spans) {
-    if (preferEnd ? index > span.start && index <= span.end : index >= span.start && index < span.end) {
+    if (
+      preferEnd ? index > span.start && index <= span.end : index >= span.start && index < span.end
+    ) {
       return span;
     }
   }
@@ -99,6 +105,7 @@ export function findMatches(root: Node, target: string): DomMatch[] {
   const matches: DomMatch[] = [];
 
   let execResult: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-exec loop idiom
   while ((execResult = matcher.exec(text)) !== null) {
     const start = execResult.index;
     const end = start + execResult[0].length;
@@ -126,7 +133,8 @@ export function findMatches(root: Node, target: string): DomMatch[] {
 
 /** True if `node` already sits inside an element matching `selector`, up to (and excluding) `root`. */
 export function isInsideMatch(node: Node, root: Node, selector: string): boolean {
-  let el: Element | null = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+  let el: Element | null =
+    node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
   while (el && el !== root) {
     if (el.matches(selector)) {
       return true;

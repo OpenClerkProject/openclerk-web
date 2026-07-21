@@ -160,8 +160,9 @@ describe("OpenClerk Studio chrome", () => {
     setUpDom();
     // These window globals persist across tests (jest.resetModules() only resets modules, not the
     // shared window) -- clear the scribe seam so each test starts clean.
-    delete (window as unknown as { __openclerkScribe?: unknown }).__openclerkScribe;
-    delete (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText;
+    (window as unknown as { __openclerkScribe?: unknown }).__openclerkScribe = undefined;
+    (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText =
+      undefined;
   });
 
   it("loads editor/main.ts and studio/chrome.ts together without throwing", () => {
@@ -178,8 +179,12 @@ describe("OpenClerk Studio chrome", () => {
     document.querySelector<HTMLButtonElement>('[data-panel="bluebook-check"]')!.click();
 
     expect(document.getElementById("stu-slideover")!.classList.contains("open")).toBe(true);
-    expect(document.getElementById("bluebook-check-panel")!.classList.contains("active")).toBe(true);
-    expect(document.getElementById("manage-hyperlinks-panel")!.classList.contains("active")).toBe(false);
+    expect(document.getElementById("bluebook-check-panel")!.classList.contains("active")).toBe(
+      true,
+    );
+    expect(document.getElementById("manage-hyperlinks-panel")!.classList.contains("active")).toBe(
+      false,
+    );
     expect(document.getElementById("stu-slideover-title")!.textContent).toBe("Bluebook Check");
   });
 
@@ -211,10 +216,13 @@ describe("OpenClerk Studio chrome", () => {
     require("../src/editor/main");
     const chrome = require("../src/studio/chrome");
 
-    documentSurface().innerHTML = "<h1>Title</h1><h2>Section One</h2><p>Body text.</p><h3>Subsection</h3>";
+    documentSurface().innerHTML =
+      "<h1>Title</h1><h2>Section One</h2><p>Body text.</p><h3>Subsection</h3>";
     chrome.refreshOutline();
 
-    const items = Array.from(document.querySelectorAll(".stu-outline-item")).map((el) => el.textContent);
+    const items = Array.from(document.querySelectorAll(".stu-outline-item")).map(
+      (el) => el.textContent,
+    );
     expect(items).toEqual(["Title", "Section One", "Subsection"]);
   });
 
@@ -243,12 +251,16 @@ describe("OpenClerk Studio chrome", () => {
     const chrome = require("../src/studio/chrome");
 
     documentSurface().innerHTML = `<p>${CLEAN_CITATION}</p><p>${FLAGGED_CITATION}</p>`;
-    (document.getElementById("bluebook-edition-select") as HTMLSelectElement).dispatchEvent(new Event("change"));
+    (document.getElementById("bluebook-edition-select") as HTMLSelectElement).dispatchEvent(
+      new Event("change"),
+    );
 
     await editor.checkBluebookCitations();
     chrome.refreshHealthAndGutter();
 
-    expect(document.getElementById("stu-health-summary")!.textContent).toContain("1 formatting issue");
+    expect(document.getElementById("stu-health-summary")!.textContent).toContain(
+      "1 formatting issue",
+    );
     expect(document.getElementById("stu-status-warning")!.textContent).toContain("1 issue");
 
     const cards = document.querySelectorAll(".stu-gutter-card");
@@ -369,7 +381,9 @@ describe("OpenClerk Studio chrome", () => {
 
     function seedScribe(overrides: Partial<ScribeMock> = {}): ScribeMock {
       const scribe: ScribeMock = {
-        extractPdfText: jest.fn().mockResolvedValue([{ pageNumber: 1, text: "recovered ocr text", source: "ocr" }]),
+        extractPdfText: jest
+          .fn()
+          .mockResolvedValue([{ pageNumber: 1, text: "recovered ocr text", source: "ocr" }]),
         exportSearchablePdf: jest.fn().mockResolvedValue(new ArrayBuffer(64)),
         importPdfData: jest.fn().mockResolvedValue({
           markdown: "# Heading\n\nBody text.",
@@ -390,14 +404,22 @@ describe("OpenClerk Studio chrome", () => {
       require("../src/editor/main");
       require("../src/studio/chrome");
 
-      const extractor = (window as unknown as { __openclerkExtractPdfText?: Function }).__openclerkExtractPdfText;
+      type PdfExtractor = (
+        file: File,
+        options?: { onProgress?: (message: string) => void },
+      ) => Promise<Array<{ pageNumber: number; text: string; source: string }>>;
+      const extractor = (window as unknown as { __openclerkExtractPdfText?: PdfExtractor })
+        .__openclerkExtractPdfText;
       expect(typeof extractor).toBe("function");
 
       const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
       const onProgress = jest.fn();
       const pages = await extractor!(file, { onProgress });
 
-      expect(scribe.extractPdfText).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress }));
+      expect(scribe.extractPdfText).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ onProgress }),
+      );
       expect(pages[0].text).toBe("recovered ocr text");
       expect(pages[0].source).toBe("ocr");
     });
@@ -422,7 +444,9 @@ describe("OpenClerk Studio chrome", () => {
       const revokeObjectURL = jest.fn();
       (URL as unknown as { createObjectURL: unknown }).createObjectURL = createObjectURL;
       (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeObjectURL;
-      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      const anchorClick = jest
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(() => {});
 
       const input = document.getElementById("stu-searchable-pdf-input") as HTMLInputElement;
       const file = new File(["%PDF-1.4"], "brief.pdf", { type: "application/pdf" });
@@ -430,7 +454,10 @@ describe("OpenClerk Studio chrome", () => {
 
       await chrome.handleSearchablePdfExport({ target: input } as unknown as Event);
 
-      expect(scribe.exportSearchablePdf).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+      expect(scribe.exportSearchablePdf).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ onProgress: expect.any(Function) }),
+      );
       expect(createObjectURL).toHaveBeenCalled();
       expect(anchorClick).toHaveBeenCalled();
       expect(document.getElementById("status")!.textContent).toContain("brief-searchable.pdf");
@@ -454,7 +481,8 @@ describe("OpenClerk Studio chrome", () => {
     it("imports a PDF's Markdown as formatted document HTML and reports stats", async () => {
       seedScribe({
         importPdfData: jest.fn().mockResolvedValue({
-          markdown: "**Damages Summary**\n\n| Category | Amount |\n| --- | --- |\n| Medical | $12,500 |",
+          markdown:
+            "**Damages Summary**\n\n| Category | Amount |\n| --- | --- |\n| Medical | $12,500 |",
           headings: [],
           stats: { pages: 2, words: 40, textNative: false, lowConfidenceWords: [] },
         }),
@@ -476,13 +504,16 @@ describe("OpenClerk Studio chrome", () => {
       expect(surface.querySelector("h1, h2, h3")).toBeNull();
       expect(surface.querySelector("table.oc-import-table")).not.toBeNull();
       expect(surface.querySelector("td")!.textContent).toBe("Medical");
-      expect(document.getElementById("status")!.textContent).toMatch(/Imported "filing\.pdf" \(2 page\(s\), 40 words, via OCR\)/);
+      expect(document.getElementById("status")!.textContent).toMatch(
+        /Imported "filing\.pdf" \(2 page\(s\), 40 words, via OCR\)/,
+      );
     });
 
     it("renders detected headings as <hN>, feeds the outline, and notes the count", async () => {
       seedScribe({
         importPdfData: jest.fn().mockResolvedValue({
-          markdown: "**Memorandum of Law**\n\nIntro paragraph.\n\n**Statement of Facts**\n\nThe facts.",
+          markdown:
+            "**Memorandum of Law**\n\nIntro paragraph.\n\n**Statement of Facts**\n\nThe facts.",
           headings: [
             { text: "Memorandum of Law", level: 1 },
             { text: "Statement of Facts", level: 2 },
@@ -507,7 +538,9 @@ describe("OpenClerk Studio chrome", () => {
       // The bold-line headings became real <hN>, not bold paragraphs.
       expect(surface.querySelector("b")).toBeNull();
       // The detected headings flow into the document outline.
-      const outline = Array.from(document.querySelectorAll(".stu-outline-item")).map((el) => el.textContent);
+      const outline = Array.from(document.querySelectorAll(".stu-outline-item")).map(
+        (el) => el.textContent,
+      );
       expect(outline).toEqual(["Memorandum of Law", "Statement of Facts"]);
       expect(document.getElementById("status")!.textContent).toContain("2 heading(s) detected");
     });
@@ -517,18 +550,28 @@ describe("OpenClerk Studio chrome", () => {
         importPdfData: jest.fn().mockResolvedValue({
           markdown: "The AVIANCA appeal and the Affirma statement.",
           headings: [],
-          stats: { pages: 1, words: 7, textNative: false, lowConfidenceWords: ["AVIANCA", "Affirma"] },
+          stats: {
+            pages: 1,
+            words: 7,
+            textNative: false,
+            lowConfidenceWords: ["AVIANCA", "Affirma"],
+          },
         }),
       });
       const chrome = require("../src/studio/chrome");
       require("../src/editor/main");
 
       const input = document.getElementById("stu-import-pdf-input") as HTMLInputElement;
-      Object.defineProperty(input, "files", { value: [new File(["x"], "s.pdf")], configurable: true });
+      Object.defineProperty(input, "files", {
+        value: [new File(["x"], "s.pdf")],
+        configurable: true,
+      });
 
       await chrome.handlePdfImport({ target: input } as unknown as Event);
 
-      const marks = Array.from(documentSurface().querySelectorAll("mark.oc-lowconf")).map((m) => m.textContent);
+      const marks = Array.from(documentSurface().querySelectorAll("mark.oc-lowconf")).map(
+        (m) => m.textContent,
+      );
       expect(marks).toEqual(["AVIANCA", "Affirma"]);
       expect(document.getElementById("status")!.textContent).toContain("2 low-confidence word(s)");
     });
@@ -538,9 +581,13 @@ describe("OpenClerk Studio chrome", () => {
       const chrome = require("../src/studio/chrome");
       require("../src/editor/main");
 
-      (URL as unknown as { createObjectURL: unknown }).createObjectURL = jest.fn().mockReturnValue("blob:mock");
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = jest
+        .fn()
+        .mockReturnValue("blob:mock");
       (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = jest.fn();
-      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      const anchorClick = jest
+        .spyOn(HTMLAnchorElement.prototype, "click")
+        .mockImplementation(() => {});
 
       const input = document.getElementById("stu-pdf-to-docx-input") as HTMLInputElement;
       const file = new File(["x"], "brief.pdf", { type: "application/pdf" });
@@ -548,7 +595,10 @@ describe("OpenClerk Studio chrome", () => {
 
       await chrome.handlePdfToDocx({ target: input } as unknown as Event);
 
-      expect(scribe.convertPdfToDocx).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+      expect(scribe.convertPdfToDocx).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ onProgress: expect.any(Function) }),
+      );
       expect(anchorClick).toHaveBeenCalled();
       expect(document.getElementById("status")!.textContent).toContain("brief.docx");
     });
@@ -585,13 +635,10 @@ describe("OpenClerk Studio chrome", () => {
 
     it("promotes a bold line to <hN> when it matches a detected heading", () => {
       const { markdownToHtml } = require("../src/studio/chrome");
-      const html = markdownToHtml(
-        "**Memorandum of Law**\n\n**Statement of Facts**\n\nBody.",
-        [
-          { text: "Memorandum of Law", level: 1 },
-          { text: "Statement of Facts", level: 2 },
-        ],
-      );
+      const html = markdownToHtml("**Memorandum of Law**\n\n**Statement of Facts**\n\nBody.", [
+        { text: "Memorandum of Law", level: 1 },
+        { text: "Statement of Facts", level: 2 },
+      ]);
       expect(html).toContain("<h1>Memorandum of Law</h1>");
       expect(html).toContain("<h2>Statement of Facts</h2>");
       expect(html).toContain("<p>Body.</p>");
@@ -637,8 +684,14 @@ describe("OpenClerk Studio chrome", () => {
       require("../src/editor/main");
       require("../src/studio/chrome");
 
-      const undoSpy = jest.spyOn(document.getElementById("format-undo-button") as HTMLElement, "click");
-      const redoSpy = jest.spyOn(document.getElementById("format-redo-button") as HTMLElement, "click");
+      const undoSpy = jest.spyOn(
+        document.getElementById("format-undo-button") as HTMLElement,
+        "click",
+      );
+      const redoSpy = jest.spyOn(
+        document.getElementById("format-redo-button") as HTMLElement,
+        "click",
+      );
 
       document.getElementById("stu-edit-undo")!.click();
       document.getElementById("stu-edit-redo")!.click();

@@ -1,4 +1,9 @@
-import { bluebookRuleSetRegistry, extractCaseCitations, parseCaseCitation, BluebookIssue } from "openclerk-core";
+import {
+  type BluebookIssue,
+  bluebookRuleSetRegistry,
+  extractCaseCitations,
+  parseCaseCitation,
+} from "openclerk-core";
 import { extractTextFromFile } from "./fileText";
 
 interface CitationResult {
@@ -62,14 +67,16 @@ function checkCitations(): void {
     return;
   }
 
-  const flaggedCount = results.filter((result) => result.parseFailed || result.issues.length > 0).length;
+  const flaggedCount = results.filter(
+    (result) => result.parseFailed || result.issues.length > 0,
+  ).length;
   const errorCount = results.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "error").length,
-    0
+    0,
   );
   const warningCount = results.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "warning").length,
-    0
+    0,
   );
 
   statusEl.textContent =
@@ -83,7 +90,7 @@ async function handleFileUpload(): Promise<void> {
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
   const fileStatusEl = document.getElementById("file-status")!;
   const textarea = document.getElementById("citation-input") as HTMLTextAreaElement;
-  const file = fileInput.files && fileInput.files[0];
+  const file = fileInput.files?.[0];
 
   if (!file) {
     return;
@@ -109,12 +116,14 @@ function statusClass(result: CitationResult): string {
   if (result.issues.length === 0) {
     return "status-ok";
   }
-  return result.issues.some((issue) => issue.severity === "error") ? "status-error" : "status-warning";
+  return result.issues.some((issue) => issue.severity === "error")
+    ? "status-error"
+    : "status-warning";
 }
 
 function renderResult(result: CitationResult): HTMLElement {
   const item = document.createElement("div");
-  item.className = "issue-item " + statusClass(result);
+  item.className = `issue-item ${statusClass(result)}`;
 
   const citationEl = document.createElement("p");
   citationEl.className = "issue-citation";
@@ -134,7 +143,7 @@ function renderResult(result: CitationResult): HTMLElement {
   } else {
     result.issues.forEach((issue) => {
       const p = document.createElement("p");
-      p.className = "issue-message issue-" + issue.severity;
+      p.className = `issue-message issue-${issue.severity}`;
       const tag = document.createElement("span");
       tag.className = "rule-tag";
       tag.textContent = issue.ruleId;

@@ -171,7 +171,11 @@ function collectLowConfidenceWords(doc) {
         for (const word of line.words || []) {
           wordCount += 1;
           const text = (word.text || "").trim();
-          if (typeof word.conf === "number" && word.conf < LOW_CONFIDENCE_THRESHOLD && isDistinctiveToken(text)) {
+          if (
+            typeof word.conf === "number" &&
+            word.conf < LOW_CONFIDENCE_THRESHOLD &&
+            isDistinctiveToken(text)
+          ) {
             words.add(text);
           }
         }

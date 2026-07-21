@@ -41,7 +41,11 @@ function isSafeHyperlinkUrl(url: string): boolean {
   }
 }
 
-type WorkflowPanel = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
+type WorkflowPanel =
+  | "manage-hyperlinks"
+  | "bluebook-check"
+  | "hallucination-check"
+  | "embed-cited-text";
 
 const PANEL_TITLES: Record<WorkflowPanel, string> = {
   "manage-hyperlinks": "Manage Hyperlinks",
@@ -57,7 +61,9 @@ function $(id: string): HTMLElement | null {
 // ---- Dropdown menus (File / Citations / Download) ----
 
 function closeAllDropdowns(): void {
-  document.querySelectorAll<HTMLElement>(".stu-dropdown.open").forEach((el) => el.classList.remove("open"));
+  document
+    .querySelectorAll<HTMLElement>(".stu-dropdown.open")
+    .forEach((el) => el.classList.remove("open"));
   document.querySelectorAll<HTMLElement>(".stu-menu-trigger.open").forEach((el) => {
     el.classList.remove("open");
     el.setAttribute("aria-expanded", "false");
@@ -212,7 +218,9 @@ function readResultRows(containerId: string): ResultRow[] {
         : row.classList.contains("status-warning")
           ? "warning"
           : "ok";
-      const messageEl = row.querySelector<HTMLElement>(".helper-text, .bluebook-issue-item-list li");
+      const messageEl = row.querySelector<HTMLElement>(
+        ".helper-text, .bluebook-issue-item-list li",
+      );
       return { citationButton, status, message: messageEl?.textContent?.trim() || "" };
     })
     .filter((row): row is ResultRow => row !== null);
@@ -229,14 +237,20 @@ function refreshHealthAndGutter(): void {
   // both figures.
   const verifiedCount = hallucinationRows.filter((row) => row.status === "ok").length;
   const formattingIssueCount = bluebookRows.filter((row) => row.status !== "ok").length;
-  const possibleHallucinationCount = hallucinationRows.filter((row) => row.status === "error").length;
+  const possibleHallucinationCount = hallucinationRows.filter(
+    (row) => row.status === "error",
+  ).length;
 
   renderHealthSummary(verifiedCount, formattingIssueCount, possibleHallucinationCount);
   renderStatusBarCounts(verifiedCount, formattingIssueCount, possibleHallucinationCount);
   renderGutter(bluebookRows, hallucinationRows);
 }
 
-function renderHealthSummary(verified: number, formattingIssues: number, hallucinations: number): void {
+function renderHealthSummary(
+  verified: number,
+  formattingIssues: number,
+  hallucinations: number,
+): void {
   const container = $("stu-health-summary");
   if (!container) {
     return;
@@ -244,8 +258,16 @@ function renderHealthSummary(verified: number, formattingIssues: number, halluci
   container.innerHTML = "";
   const rows: { count: number; label: string; kind: "ok" | "warning" | "error" }[] = [
     { count: verified, label: `${verified} verified`, kind: "ok" },
-    { count: formattingIssues, label: `${formattingIssues} formatting issue${formattingIssues === 1 ? "" : "s"}`, kind: "warning" },
-    { count: hallucinations, label: `${hallucinations} possible hallucination${hallucinations === 1 ? "" : "s"}`, kind: "error" },
+    {
+      count: formattingIssues,
+      label: `${formattingIssues} formatting issue${formattingIssues === 1 ? "" : "s"}`,
+      kind: "warning",
+    },
+    {
+      count: hallucinations,
+      label: `${hallucinations} possible hallucination${hallucinations === 1 ? "" : "s"}`,
+      kind: "error",
+    },
   ];
   if (rows.every((row) => row.count === 0)) {
     const empty = document.createElement("p");
@@ -269,7 +291,11 @@ function renderHealthSummary(verified: number, formattingIssues: number, halluci
     });
 }
 
-function renderStatusBarCounts(verified: number, formattingIssues: number, hallucinations: number): void {
+function renderStatusBarCounts(
+  verified: number,
+  formattingIssues: number,
+  hallucinations: number,
+): void {
   const verifiedEl = $("stu-status-verified");
   const warningEl = $("stu-status-warning");
   const errorEl = $("stu-status-error");
@@ -277,7 +303,8 @@ function renderStatusBarCounts(verified: number, formattingIssues: number, hallu
     verifiedEl.textContent = verified > 0 ? `● ${verified} verified` : "";
   }
   if (warningEl) {
-    warningEl.textContent = formattingIssues > 0 ? `● ${formattingIssues} issue${formattingIssues === 1 ? "" : "s"}` : "";
+    warningEl.textContent =
+      formattingIssues > 0 ? `● ${formattingIssues} issue${formattingIssues === 1 ? "" : "s"}` : "";
   }
   if (errorEl) {
     errorEl.textContent = hallucinations > 0 ? `● ${hallucinations} flagged` : "";
@@ -292,8 +319,12 @@ function renderGutter(bluebookRows: ResultRow[], hallucinationRows: ResultRow[])
   gutter.innerHTML = "";
 
   const flagged = [
-    ...bluebookRows.filter((row) => row.status !== "ok").map((row) => ({ row, source: "Bluebook Check" })),
-    ...hallucinationRows.filter((row) => row.status !== "ok").map((row) => ({ row, source: "Find Hallucinations" })),
+    ...bluebookRows
+      .filter((row) => row.status !== "ok")
+      .map((row) => ({ row, source: "Bluebook Check" })),
+    ...hallucinationRows
+      .filter((row) => row.status !== "ok")
+      .map((row) => ({ row, source: "Find Hallucinations" })),
   ];
 
   flagged.forEach(({ row, source }) => {
@@ -369,7 +400,9 @@ function insertHyperlink(): void {
     return;
   }
   if (!isSafeHyperlinkUrl(trimmed)) {
-    setStudioStatus('That URL doesn\'t look safe to link to -- only "http://" and "https://" links are allowed.');
+    setStudioStatus(
+      'That URL doesn\'t look safe to link to -- only "http://" and "https://" links are allowed.',
+    );
     return;
   }
 
@@ -476,7 +509,7 @@ function downloadBlob(data: ArrayBuffer, filename: string, mimeType: string): vo
 
 async function handleSearchablePdfExport(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
-  const file = input.files && input.files[0];
+  const file = input.files?.[0];
   input.value = "";
   if (!file) {
     return;
@@ -534,7 +567,12 @@ function renderTable(rows: string[]): string {
     ? `<thead><tr>${headerCells.map((c) => `<th>${renderInlineMarkdown(c)}</th>`).join("")}</tr></thead>`
     : "";
   const tbody = bodyRows
-    .map((row) => `<tr>${splitTableCells(row).map((c) => `<td>${renderInlineMarkdown(c)}</td>`).join("")}</tr>`)
+    .map(
+      (row) =>
+        `<tr>${splitTableCells(row)
+          .map((c) => `<td>${renderInlineMarkdown(c)}</td>`)
+          .join("")}</tr>`,
+    )
     .join("");
   return `<table class="oc-import-table">${thead}<tbody>${tbody}</tbody></table>`;
 }
@@ -616,7 +654,10 @@ function highlightLowConfidence(root: HTMLElement, words: string[]): void {
   }
   // Longest first so a token isn't half-matched by a shorter one it contains.
   distinct.sort((a, b) => b.length - a.length);
-  const pattern = new RegExp(distinct.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  const pattern = new RegExp(
+    distinct.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+    "g",
+  );
 
   const textNodes: Text[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -635,6 +676,7 @@ function highlightLowConfidence(root: HTMLElement, words: string[]): void {
     let lastIndex = 0;
     let matched = false;
     let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-exec loop idiom
     while ((match = pattern.exec(value)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
@@ -670,7 +712,7 @@ function highlightLowConfidence(root: HTMLElement, words: string[]): void {
 
 async function handlePdfImport(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
-  const file = input.files && input.files[0];
+  const file = input.files?.[0];
   input.value = "";
   if (!file) {
     return;
@@ -682,17 +724,24 @@ async function handlePdfImport(event: Event): Promise<void> {
   try {
     setStudioStatus(`Importing "${file.name}" (OCR can take a while for scanned pages)...`);
     const scribe = await ensureScribe();
-    const { markdown, headings, stats } = await scribe.importPdfData(file, { onProgress: setStudioStatus });
+    const { markdown, headings, stats } = await scribe.importPdfData(file, {
+      onProgress: setStudioStatus,
+    });
 
     doc.innerHTML = markdownToHtml(markdown, headings);
     highlightLowConfidence(doc, stats.lowConfidenceWords);
     refreshOutline();
 
     const lowCount = stats.lowConfidenceWords.length;
-    const lowNote = lowCount > 0 ? ` ${lowCount} low-confidence word(s) are highlighted -- verify them against the original.` : "";
+    const lowNote =
+      lowCount > 0
+        ? ` ${lowCount} low-confidence word(s) are highlighted -- verify them against the original.`
+        : "";
     const headingNote = headings.length > 0 ? ` ${headings.length} heading(s) detected.` : "";
     const kind = stats.textNative ? "text" : "OCR";
-    setStudioStatus(`Imported "${file.name}" (${stats.pages} page(s), ${stats.words.toLocaleString()} words, via ${kind}) with formatting preserved.${headingNote}${lowNote}`);
+    setStudioStatus(
+      `Imported "${file.name}" (${stats.pages} page(s), ${stats.words.toLocaleString()} words, via ${kind}) with formatting preserved.${headingNote}${lowNote}`,
+    );
   } catch (error) {
     setStudioStatus(error instanceof Error ? error.message : String(error));
   }
@@ -700,7 +749,7 @@ async function handlePdfImport(event: Event): Promise<void> {
 
 async function handlePdfToDocx(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
-  const file = input.files && input.files[0];
+  const file = input.files?.[0];
   input.value = "";
   if (!file) {
     return;
@@ -710,7 +759,11 @@ async function handlePdfToDocx(event: Event): Promise<void> {
     const scribe = await ensureScribe();
     const buffer = await scribe.convertPdfToDocx(file, { onProgress: setStudioStatus });
     const base = file.name.replace(/\.pdf$/i, "");
-    downloadBlob(buffer, `${base}.docx`, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    downloadBlob(
+      buffer,
+      `${base}.docx`,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
     setStudioStatus(`Downloaded "${base}.docx".`);
   } catch (error) {
     setStudioStatus(error instanceof Error ? error.message : String(error));
@@ -763,8 +816,12 @@ function toggleView(panelId: string, buttonId: string): void {
 }
 
 function wireViewMenu(): void {
-  $("stu-view-toggle-outline")?.addEventListener("click", () => toggleView("stu-outline", "stu-view-toggle-outline"));
-  $("stu-view-toggle-gutter")?.addEventListener("click", () => toggleView("stu-gutter", "stu-view-toggle-gutter"));
+  $("stu-view-toggle-outline")?.addEventListener("click", () =>
+    toggleView("stu-outline", "stu-view-toggle-outline"),
+  );
+  $("stu-view-toggle-gutter")?.addEventListener("click", () =>
+    toggleView("stu-gutter", "stu-view-toggle-gutter"),
+  );
 }
 
 // ---- Wiring ----
@@ -785,8 +842,12 @@ function init(): void {
   // editor-bundle.js already consumes. The wrapper is set immediately but loads scribe lazily, so
   // loading a .pdf via "Load from file" here uses scribe instead of the tesseract editor-pdf-bundle.
   window.__openclerkExtractPdfText = (file, options) =>
-    ensureScribe().then((scribe) => scribe.extractPdfText(file, { onProgress: options?.onProgress }));
-  $("stu-save-searchable-pdf")?.addEventListener("click", () => $("stu-searchable-pdf-input")?.click());
+    ensureScribe().then((scribe) =>
+      scribe.extractPdfText(file, { onProgress: options?.onProgress }),
+    );
+  $("stu-save-searchable-pdf")?.addEventListener("click", () =>
+    $("stu-searchable-pdf-input")?.click(),
+  );
   $("stu-searchable-pdf-input")?.addEventListener("change", handleSearchablePdfExport);
   $("stu-import-pdf")?.addEventListener("click", () => $("stu-import-pdf-input")?.click());
   $("stu-import-pdf-input")?.addEventListener("change", handlePdfImport);
@@ -821,7 +882,10 @@ function init(): void {
     if (!container) {
       return;
     }
-    new MutationObserver(refreshHealthAndGutter).observe(container, { childList: true, subtree: true });
+    new MutationObserver(refreshHealthAndGutter).observe(container, {
+      childList: true,
+      subtree: true,
+    });
   });
 }
 

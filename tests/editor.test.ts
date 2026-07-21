@@ -105,9 +105,7 @@ async function buildDocx(paragraphs: string[]): Promise<File> {
   const body = paragraphs.map((text) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`).join("");
   zip.file(
     "word/document.xml",
-    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
-      `<w:body>${body}</w:body></w:document>`
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`,
   );
   const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
   return new File([arrayBuffer], "brief.docx", {
@@ -121,10 +119,7 @@ async function buildOdt(paragraphs: string[]): Promise<File> {
   zip.file("mimetype", "application/vnd.oasis.opendocument.text", { compression: "STORE" });
   zip.file(
     "content.xml",
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
-      `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">` +
-      `<office:body><office:text>${body}</office:text></office:body></office:document-content>`
+    `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"><office:body><office:text>${body}</office:text></office:body></office:document-content>`,
   );
   const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
   return new File([arrayBuffer], "brief.odt", { type: "application/vnd.oasis.opendocument.text" });
@@ -134,12 +129,25 @@ const CITATION = "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)
 
 // Fakes CourtListener's two endpoints (citation-lookup and opinions) well enough to exercise the
 // Online Lookup / Find Hallucinations / Embed Cited Text workflows without a real network call.
-function installCourtListenerFetchMock(options: { found?: boolean; opinionText?: string } = {}): jest.Mock {
+function installCourtListenerFetchMock(
+  options: { found?: boolean; opinionText?: string } = {},
+): jest.Mock {
   const found = options.found ?? true;
   const fetchMock = jest.fn(async (url: string) => {
     if (url.includes("/citation-lookup/")) {
       const body = found
-        ? [{ status: 200, citation: CITATION, clusters: [{ case_name: "Norfolk & W. Ry. Co. v. Liepelt", absolute_url: "/opinion/12345/norfolk/" }] }]
+        ? [
+            {
+              status: 200,
+              citation: CITATION,
+              clusters: [
+                {
+                  case_name: "Norfolk & W. Ry. Co. v. Liepelt",
+                  absolute_url: "/opinion/12345/norfolk/",
+                },
+              ],
+            },
+          ]
         : [{ status: 404, clusters: [] }];
       return { ok: true, status: 200, json: async () => body } as Response;
     }
@@ -160,7 +168,8 @@ describe("openclerk-web editor", () => {
   });
 
   afterEach(() => {
-    delete (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText;
+    (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText =
+      undefined;
   });
 
   it("loads a .txt file's contents into the document surface", async () => {
@@ -176,7 +185,9 @@ describe("openclerk-web editor", () => {
 
   it("extracts text from a .docx file's body into the document surface", async () => {
     const editor = require("../src/editor/main");
-    const file = await buildDocx(["Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"]);
+    const file = await buildDocx([
+      "Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)",
+    ]);
     selectFile("load-file-input", file);
 
     await editor.handleDocumentFileUpload();
@@ -186,7 +197,9 @@ describe("openclerk-web editor", () => {
 
   it("extracts text from a .odt file's body into the document surface", async () => {
     const editor = require("../src/editor/main");
-    const file = await buildOdt(["Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"]);
+    const file = await buildOdt([
+      "Norfolk &amp; W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)",
+    ]);
     selectFile("load-file-input", file);
 
     await editor.handleDocumentFileUpload();
@@ -206,18 +219,24 @@ describe("openclerk-web editor", () => {
       { pageNumber: 1, text: CITATION, source: "embedded" as const },
       { pageNumber: 2, text: "Second page, via OCR.", source: "ocr" as const },
     ]);
-    (window as unknown as { __openclerkExtractPdfText: typeof mockExtractPdfText }).__openclerkExtractPdfText =
-      mockExtractPdfText;
+    (
+      window as unknown as { __openclerkExtractPdfText: typeof mockExtractPdfText }
+    ).__openclerkExtractPdfText = mockExtractPdfText;
 
     const file = new File(["%PDF-1.4 fake content"], "brief.pdf", { type: "application/pdf" });
     selectFile("load-file-input", file);
 
     await editor.handleDocumentFileUpload();
 
-    expect(mockExtractPdfText).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+    expect(mockExtractPdfText).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({ onProgress: expect.any(Function) }),
+    );
     expect(documentSurface().textContent).toContain(CITATION);
     expect(documentSurface().textContent).toContain("Second page, via OCR.");
-    expect(document.getElementById("load-file-status")!.textContent).toMatch(/Loaded "brief\.pdf" \(2 page\(s\), 1 via OCR\)/);
+    expect(document.getElementById("load-file-status")!.textContent).toMatch(
+      /Loaded "brief\.pdf" \(2 page\(s\), 1 via OCR\)/,
+    );
   });
 
   it("reports an error if PDF scanning support can't be loaded", async () => {
@@ -259,8 +278,12 @@ describe("openclerk-web editor", () => {
     select.value = "bluebook-check";
     select.dispatchEvent(new Event("change"));
 
-    expect(document.getElementById("bluebook-check-panel")!.classList.contains("active")).toBe(true);
-    expect(document.getElementById("manage-hyperlinks-panel")!.classList.contains("active")).toBe(false);
+    expect(document.getElementById("bluebook-check-panel")!.classList.contains("active")).toBe(
+      true,
+    );
+    expect(document.getElementById("manage-hyperlinks-panel")!.classList.contains("active")).toBe(
+      false,
+    );
   });
 
   it("runs a Bluebook check against the document and renders a result", async () => {
@@ -299,7 +322,9 @@ describe("openclerk-web editor", () => {
     urlInput.dispatchEvent(new Event("input"));
 
     await editor.addParentheticalHyperlinks();
-    const link = documentSurface().querySelector("a.oc-parenthetical-hyperlink") as HTMLAnchorElement | null;
+    const link = documentSurface().querySelector(
+      "a.oc-parenthetical-hyperlink",
+    ) as HTMLAnchorElement | null;
     expect(link).not.toBeNull();
     expect(link!.href).toBe("https://example.com/restatement");
 
@@ -316,7 +341,9 @@ describe("openclerk-web editor", () => {
     providerSelect.value = "courtlistener";
     providerSelect.dispatchEvent(new Event("change"));
 
-    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    const tokenInput = document.getElementById(
+      "credential-courtlistener-apiToken",
+    ) as HTMLInputElement;
     tokenInput.value = "test-token";
     await editor.connectSelectedProvider();
     expect(document.getElementById("provider-auth-status")!.textContent).toBe("Connected.");
@@ -331,14 +358,19 @@ describe("openclerk-web editor", () => {
   });
 
   it("embeds cited opinion text and toggles the excerpt on click", async () => {
-    installCourtListenerFetchMock({ found: true, opinionText: "Page 490. Some opinion text. *496 More text on the pincite page." });
+    installCourtListenerFetchMock({
+      found: true,
+      opinionText: "Page 490. Some opinion text. *496 More text on the pincite page.",
+    });
     const editor = require("../src/editor/main");
     setDocText("Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490, 496 (U.S.Ill., 1980)");
 
     const providerSelect = document.getElementById("provider-select") as HTMLSelectElement;
     providerSelect.value = "courtlistener";
     providerSelect.dispatchEvent(new Event("change"));
-    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    const tokenInput = document.getElementById(
+      "credential-courtlistener-apiToken",
+    ) as HTMLInputElement;
     tokenInput.value = "test-token";
     await editor.connectSelectedProvider();
 
@@ -378,7 +410,9 @@ describe("openclerk-web editor", () => {
     const providerSelect = document.getElementById("provider-select") as HTMLSelectElement;
     providerSelect.value = "courtlistener";
     providerSelect.dispatchEvent(new Event("change"));
-    const tokenInput = document.getElementById("credential-courtlistener-apiToken") as HTMLInputElement;
+    const tokenInput = document.getElementById(
+      "credential-courtlistener-apiToken",
+    ) as HTMLInputElement;
     tokenInput.value = "test-token";
     await editor.connectSelectedProvider();
     await editor.applyHyperlinksViaProvider();
@@ -403,10 +437,10 @@ describe("openclerk-web editor", () => {
     // in jsdom -- see formatting.ts) -- this exercises the export serializer deterministically,
     // independent of whether the browser's own execCommand happened to produce <b> vs <strong>.
     documentSurface().innerHTML =
-      `<h1>Case Summary</h1>` +
-      `<p>This case involves <strong>bold</strong>, <em>italic</em>, and <u>underlined</u> text.</p>` +
-      `<ul><li>First point</li><li>Second point</li></ul>` +
-      `<ol><li>Step one</li><li>Step two</li></ol>`;
+      "<h1>Case Summary</h1>" +
+      "<p>This case involves <strong>bold</strong>, <em>italic</em>, and <u>underlined</u> text.</p>" +
+      "<ul><li>First point</li><li>Second point</li></ul>" +
+      "<ol><li>Step one</li><li>Step two</li></ol>";
 
     const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
     const zip = await JSZip.loadAsync(archive);
@@ -432,7 +466,9 @@ describe("openclerk-web editor", () => {
     const zip = await JSZip.loadAsync(archive);
     const contentXml = await zip.file("content.xml")!.async("string");
 
-    expect(contentXml).toContain('<text:a xlink:type="simple" xlink:href="https://example.com/exhibit-a">Exhibit A</text:a>');
+    expect(contentXml).toContain(
+      '<text:a xlink:type="simple" xlink:href="https://example.com/exhibit-a">Exhibit A</text:a>',
+    );
   });
 
   it("wires up the formatting toolbar without throwing, even though execCommand isn't available in jsdom", () => {
@@ -454,7 +490,7 @@ describe("openclerk-web editor", () => {
       blockSelect.dispatchEvent(new Event("change"));
 
       documentSurface().dispatchEvent(
-        new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true })
+        new KeyboardEvent("keydown", { key: "b", ctrlKey: true, bubbles: true, cancelable: true }),
       );
     }).not.toThrow();
   });
