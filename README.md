@@ -140,15 +140,36 @@ less than an import that isn't actually small.
 ### Higher-accuracy OCR + searchable-PDF output (scribe.js) — Studio only
 
 Studio uses **[scribe.js](https://github.com/scribeocr/scribe.js)** as its OCR engine, giving it
-three things the tesseract.js-based PDF & OCR Tools page can't do:
+several things the tesseract.js-based PDF & OCR Tools page can't do:
 
 - **Better OCR accuracy** when you load a scanned PDF via *File → Load from file* — scribe's
   custom model recovers more text than Tesseract's default engine.
-- **Font-style detection** — scribe reports bold/italic/font/size per word, and preserves them in
-  its PDF output.
+- **Style-preserving import** — *File → "Import PDF (keep formatting)…"* OCRs a PDF and brings it
+  into the editable document with **headings, bold/italic, and tables preserved** (detected
+  headings feed the document outline; tables come in as real `<table>`s), instead of flattening to
+  plain text. It's built from scribe's Markdown rendering (`markdownToHtml` in `studio/chrome.ts`),
+  which is the clean semantic source — scribe's own HTML export is an absolute-positioned visual
+  page reproduction, unusable for a contenteditable.
+- **Heading detection** — scribe's Markdown emits headings as plain bold lines (no `#` markers), so
+  headings are detected from its *layout model* instead: `scribe-loader.mjs` takes the paragraphs
+  scribe classifies as `par.type === 'title'` that are genuinely larger than the body text, and
+  ranks their font sizes into levels (largest → `h1`, next → `h2`, smaller → `h3`). `markdownToHtml`
+  promotes the matching bold lines to real `<hN>` tags, which flow straight into the document
+  outline. The "larger than body" guard keeps it conservative — a scanned filing with no
+  distinctly-sized headings detects none rather than inventing false ones.
+- **Low-confidence flagging** — after an import, the words scribe was least sure about (its genuine
+  OCR garbles, e.g. a misread case name) are **highlighted in red** for you to verify against the
+  original. Only *distinctive* low-confidence tokens are flagged (an alphanumeric core of ≥ 5, or
+  containing a digit), so common short words that merely scored low once don't drown the document
+  in false marks.
+- **PDF → Word (.docx)** — *File → "Convert a PDF to Word (.docx)…"* OCRs a scanned PDF and
+  downloads it as an editable Word document (scribe's `.docx` export, with recognized layout and
+  font styles).
 - **Searchable-PDF output** — *File → "Save a PDF as searchable…"* takes a scanned PDF, OCRs it,
   and downloads a copy with an **invisible, selectable OCR text layer** over the original page
   images (styles preserved).
+- **Font-style detection** underlies several of the above — scribe reports bold/italic/font/size
+  per word, preserved through the styled import, the Word export, and the searchable PDF.
 
 **Why scribe.js is on Studio only** (and the PDF & OCR Tools page and plain Document Editor keep
 tesseract.js): scribe is a heavier, higher-accuracy engine (~60 MB of self-hosted assets), and it
@@ -161,16 +182,22 @@ un-bundled `src/studio/scribe-loader.mjs`. Its Tesseract language data is self-h
 scribe's default jsdelivr CDN — so OCR here fetches nothing from a third party, unlike the PDF &
 OCR Tools page. Studio is the natural home for this weight: it's already the desktop-only "more
 features" page, and the assets **load lazily** (only when a PDF operation actually runs) and are
-cached, so Studio sessions that never touch a PDF pay nothing.
+cached, so Studio sessions that never touch a PDF pay nothing. Once a PDF operation does start, the
+loader kicks off `scribe.init({ ocr: true })` in the background so the Tesseract OCR worker warms up
+*concurrently* with parsing the PDF, rather than serially on the first `recognize()` — trimming the
+first-import wait. (Cloud OCR adapters, which scribe also ships, are deliberately **not** used: they
+send page images to a third-party service, which would break OpenClerk's "nothing leaves your
+browser" model.)
 
 The integration keeps `editor-bundle.js` unmodified. `editor/main.ts` already resolves PDF
 extraction through a `window.__openclerkExtractPdfText` seam (falling back to the tesseract
 `editor-pdf-bundle.js` if it's unset); `studio/chrome.ts` pre-sets that seam to a lazy
 scribe-backed wrapper, so the shared "Load from file" path uses scribe **on Studio** while
 `editor.html` (the Document Editor) still uses tesseract — no change to the shared bundle. As with
-`isSafeHyperlinkUrl` above, `chrome.ts` hand-rolls the small download helper rather than importing
-`editor/exportDocument.ts`'s (which would drag JSZip into `studio-bundle.js`), keeping that bundle
-at ~15 KB.
+`isSafeHyperlinkUrl` above, `chrome.ts` hand-rolls the small download helper and the Markdown→HTML
+renderer rather than importing `editor/exportDocument.ts`'s (which would drag JSZip into
+`studio-bundle.js`), keeping that bundle small (~23 KB — all the heavy OCR logic stays in the
+self-hosted, un-bundled scribe assets).
 
 **Why keep the plain Document Editor at all, instead of just replacing it:** Studio's three/four-
 pane layout (216px outline + flexible document + 344px slide-over) needs real width to work.
@@ -288,12 +315,26 @@ and how this file has been verified so far.
 
 ```bash
 npm install
-npm test          # jest + jsdom — exercises the actual DOM wiring, not just openclerk-core's own logic
-npm run lint       # tsc --noEmit
+npm test           # jest + jsdom — exercises the actual DOM wiring, not just openclerk-core's own logic
+npm run typecheck  # tsc --noEmit
+npm run lint       # biome check . — linter + formatter check + import sorting
+npm run format     # biome check --write . — auto-fix + reformat in place
 npm run build      # bundles src/ -> dist/
 ```
 
 Then open `dist/index.html` directly in a browser, or serve it locally (e.g. `npx serve dist`).
+
+Tooling notes:
+
+- **[Biome](https://biomejs.dev)** is the linter/formatter (one Rust binary, config in `biome.json`).
+  Type-checking stays a separate step (`tsc --noEmit`) since Biome doesn't type-check; CI runs
+  `typecheck`, `lint`, and `build`. Two rules are turned off in `biome.json` because they fight
+  deliberate patterns here — `noNonNullAssertion` (pervasive in DOM/test code) and `noForEach`
+  (idiomatic throughout).
+- **Jest** covers the example-based DOM tests; **[fast-check](https://fast-check.dev)** adds
+  property-based tests (`tests/properties.test.ts`) that fuzz the untrusted-input helpers —
+  `markdownToHtml` must never inject live markup from OCR/import text, and `highlightLowConfidence`
+  must never alter the document's actual text.
 
 ### If `npm install` fails on `openclerk-core`
 

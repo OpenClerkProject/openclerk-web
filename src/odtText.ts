@@ -15,7 +15,8 @@ function collectTextBlocks(documentDom: Document): Element[] {
   const walker = documentDom.createTreeWalker(documentDom, NodeFilter.SHOW_ELEMENT, {
     acceptNode(node) {
       const element = node as Element;
-      return element.namespaceURI === TEXT_NS && (element.localName === "p" || element.localName === "h")
+      return element.namespaceURI === TEXT_NS &&
+        (element.localName === "p" || element.localName === "h")
         ? NodeFilter.FILTER_ACCEPT
         : NodeFilter.FILTER_SKIP;
     },

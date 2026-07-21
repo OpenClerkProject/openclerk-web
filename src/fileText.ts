@@ -18,5 +18,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return readFileAsText(file);
   }
 
-  throw new Error(`Unsupported file type: "${file.name}". Only .txt, .docx, and .odt files are supported.`);
+  throw new Error(
+    `Unsupported file type: "${file.name}". Only .txt, .docx, and .odt files are supported.`,
+  );
 }

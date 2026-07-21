@@ -15,7 +15,7 @@ export async function loadZipWithLimits(file: File): Promise<JSZip> {
     throw new Error(
       `File is too large (${Math.round(file.size / (1024 * 1024))} MB). The maximum supported size is ${
         MAX_SOURCE_FILE_BYTES / (1024 * 1024)
-      } MB.`
+      } MB.`,
     );
   }
 
@@ -24,7 +24,9 @@ export async function loadZipWithLimits(file: File): Promise<JSZip> {
 
   const entryCount = Object.keys(zip.files).length;
   if (entryCount > MAX_ZIP_ENTRY_COUNT) {
-    throw new Error("The selected file contains an unexpectedly large number of entries and was rejected.");
+    throw new Error(
+      "The selected file contains an unexpectedly large number of entries and was rejected.",
+    );
   }
 
   return zip;

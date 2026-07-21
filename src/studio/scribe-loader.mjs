@@ -7,8 +7,10 @@
 // self-hosted under dist/scribe/ and imported here by relative path.
 //
 // This module is loaded lazily (studio/chrome.ts injects it as a <script type="module"> only when
-// a PDF operation is first requested), and it just exposes two operations on `window`; the heavy
-// WASM/worker/font loading inside scribe happens later still, when those operations actually run.
+// a PDF operation is first requested), and it exposes a handful of operations on `window`
+// (plain-text extraction, a styled/Markdown import, a searchable-PDF export, and a PDF-to-Word
+// conversion); the heavy WASM/worker/font loading inside scribe happens later still, when those
+// operations actually run.
 // It runs ONLY on the OpenClerk Studio page -- the PDF & OCR Tools page and the plain Document
 // Editor keep using tesseract.js, untouched.
 
@@ -27,6 +29,15 @@ scribe.opt.langPath = new URL("./scribe-lang/", import.meta.url).href;
  * yields "embedded", an image/scanned one "ocr", an empty page "empty".
  */
 async function runRecognition(file, onProgress) {
+  // Warm the Tesseract OCR worker in the background so it loads *concurrently* with openDocument's
+  // PDF parse and font load, instead of serially on the first recognize() call. scribe.openDocument
+  // already pre-warms the general worker pool and built-in fonts, but not the OCR worker -- which is
+  // the slow part for a scanned page -- so this overlaps that load and trims the first-import wait.
+  // Fire-and-forget best-effort: recognize() awaits the very same singleton, so a rejection here
+  // must never surface. `{ ocr: true }` deliberately does NOT preload the ~21 MB fonts (init only
+  // loads those with `{ font: true }`), keeping import/extract lightweight. Inspired by scribe's
+  // recognize-basic example, which front-loads work the same way via scribe.init.
+  scribe.init({ ocr: true }).catch(() => {});
   scribe.opt.progressHandler = (msg) => {
     if (msg && msg.type === "recognize" && typeof msg.n === "number" && onProgress) {
       onProgress(`Running OCR on page ${msg.n + 1}...`);
@@ -72,4 +83,146 @@ async function exportSearchablePdf(file, options = {}) {
   }
 }
 
-window.__openclerkScribe = { extractPdfText, exportSearchablePdf };
+// Words scribe recognized below this confidence (0-100) are worth a human's eye. 70 flags the
+// genuinely-shaky tokens (garbled OCR) without drowning the reader in false positives -- on the
+// Mata fixture this is ~2% of words.
+const LOW_CONFIDENCE_THRESHOLD = 70;
+
+// Whether a low-confidence token is *distinctive* enough to highlight every occurrence of. The
+// caller has only the set of doubted word strings (not their positions), so it marks all
+// occurrences -- which is only sensible for tokens that are consistently garbled OCR (e.g.
+// "Affirma", "AVIAN", "22-cv-1461"), not for common words like "of"/"on"/"in" that merely scored
+// low once and appear all over a legal document. Requiring an alphanumeric core of >= 5 (or any
+// digit) keeps the genuine garbles and drops the short common words and word-fragments.
+function isDistinctiveToken(text) {
+  const core = text.replace(/[^A-Za-z0-9]/g, "");
+  return /[A-Za-z]/.test(core) && (core.length >= 5 || /[0-9]/.test(core));
+}
+
+function medianOf(nums) {
+  if (!nums.length) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// A paragraph's representative font size: the median of its words' sizes (scribe reports a per-word
+// style.size in its own units, exact for text-native PDFs and estimated for OCR'd scans).
+function parFontSize(par) {
+  const sizes = [];
+  for (const line of par.lines || []) {
+    for (const word of line.words || []) {
+      if (typeof word.style?.size === "number") sizes.push(word.style.size);
+    }
+  }
+  return medianOf(sizes);
+}
+
+function parText(par) {
+  return (par.lines || [])
+    .map((line) => (line.words || []).map((word) => word.text).join(" "))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Detects heading paragraphs so the import comes in structured (headings feed Studio's outline)
+// rather than as one flat run of paragraphs. scribe's Markdown export renders headings as plain
+// bold lines -- it emits no `#` markers -- so the heading signal has to come from its layout model:
+// scribe classifies headings as par.type === 'title' (verified against real documents) and reports
+// each word's font size. We take the title paragraphs that are genuinely larger than the body text
+// (a guard against a same-size line scribe happened to tag as a title) and rank their sizes to pick
+// levels: the largest heading size becomes h1, the next h2, and anything smaller h3. The caller
+// (studio/chrome.ts) matches these against the bold lines in the Markdown to emit real <hN> tags.
+function collectHeadings(doc) {
+  const titles = [];
+  const bodySizes = [];
+  for (const page of doc.ocr?.active || []) {
+    for (const par of page.pars || []) {
+      const size = parFontSize(par);
+      if (par.type === "title") {
+        const text = parText(par);
+        if (text) titles.push({ text, size });
+      } else if (size > 0) {
+        bodySizes.push(size);
+      }
+    }
+  }
+  if (!titles.length) return [];
+  const bodyMedian = medianOf(bodySizes);
+  const headings = titles.filter((h) => !bodyMedian || h.size >= bodyMedian * 1.08);
+  if (!headings.length) return [];
+  const distinctSizes = [...new Set(headings.map((h) => Math.round(h.size)))].sort((a, b) => b - a);
+  return headings.map((h) => ({
+    text: h.text,
+    level: Math.min(distinctSizes.indexOf(Math.round(h.size)) + 1, 3),
+  }));
+}
+
+// Collects the distinct, distinctive word strings scribe was least sure about, from its OCR model
+// (doc.ocr.active -> pars -> lines -> words, each carrying a .conf). The caller (studio/chrome.ts)
+// highlights occurrences of these in the imported document.
+function collectLowConfidenceWords(doc) {
+  const words = new Set();
+  let wordCount = 0;
+  for (const page of doc.ocr?.active || []) {
+    for (const par of page.pars || []) {
+      for (const line of par.lines || []) {
+        for (const word of line.words || []) {
+          wordCount += 1;
+          const text = (word.text || "").trim();
+          if (
+            typeof word.conf === "number" &&
+            word.conf < LOW_CONFIDENCE_THRESHOLD &&
+            isDistinctiveToken(text)
+          ) {
+            words.add(text);
+          }
+        }
+      }
+    }
+  }
+  return { lowConfidenceWords: [...words], wordCount };
+}
+
+// OCRs (or reads, for a text-native PDF) a PDF and returns scribe's Markdown rendering plus the
+// low-confidence review data. Markdown -- not scribe's HTML export, which is an absolute-positioned
+// visual page reproduction -- is the clean semantic source: it carries headings, bold/italic, lists
+// and *tables* as ordinary Markdown, which studio/chrome.ts turns into editable document HTML.
+async function importPdfData(file, options = {}) {
+  const onProgress = options.onProgress;
+  const doc = await runRecognition(file, onProgress);
+  try {
+    onProgress?.("Formatting the recognized text...");
+    const markdown = await doc.exportData("md");
+    const { lowConfidenceWords, wordCount } = collectLowConfidenceWords(doc);
+    const headings = collectHeadings(doc);
+    return {
+      markdown: typeof markdown === "string" ? markdown : "",
+      headings,
+      stats: {
+        pages: doc.inputData?.pageCount ?? 0,
+        words: wordCount,
+        textNative: doc.inputData?.pdfType === "text",
+        lowConfidenceWords,
+      },
+    };
+  } finally {
+    await doc.terminate();
+  }
+}
+
+// OCRs a PDF and returns an editable Word (.docx) file with scribe's recognized text, layout, and
+// detected font styles -- turning a scanned filing into a document that opens in Word/LibreOffice.
+async function convertPdfToDocx(file, options = {}) {
+  const onProgress = options.onProgress;
+  const doc = await runRecognition(file, onProgress);
+  try {
+    onProgress?.("Building the Word document...");
+    return await doc.exportData("docx");
+  } finally {
+    await doc.terminate();
+  }
+}
+
+window.__openclerkScribe = { extractPdfText, exportSearchablePdf, importPdfData, convertPdfToDocx };

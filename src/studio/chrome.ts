@@ -41,7 +41,11 @@ function isSafeHyperlinkUrl(url: string): boolean {
   }
 }
 
-type WorkflowPanel = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
+type WorkflowPanel =
+  | "manage-hyperlinks"
+  | "bluebook-check"
+  | "hallucination-check"
+  | "embed-cited-text";
 
 const PANEL_TITLES: Record<WorkflowPanel, string> = {
   "manage-hyperlinks": "Manage Hyperlinks",
@@ -57,7 +61,9 @@ function $(id: string): HTMLElement | null {
 // ---- Dropdown menus (File / Citations / Download) ----
 
 function closeAllDropdowns(): void {
-  document.querySelectorAll<HTMLElement>(".stu-dropdown.open").forEach((el) => el.classList.remove("open"));
+  document
+    .querySelectorAll<HTMLElement>(".stu-dropdown.open")
+    .forEach((el) => el.classList.remove("open"));
   document.querySelectorAll<HTMLElement>(".stu-menu-trigger.open").forEach((el) => {
     el.classList.remove("open");
     el.setAttribute("aria-expanded", "false");
@@ -212,7 +218,9 @@ function readResultRows(containerId: string): ResultRow[] {
         : row.classList.contains("status-warning")
           ? "warning"
           : "ok";
-      const messageEl = row.querySelector<HTMLElement>(".helper-text, .bluebook-issue-item-list li");
+      const messageEl = row.querySelector<HTMLElement>(
+        ".helper-text, .bluebook-issue-item-list li",
+      );
       return { citationButton, status, message: messageEl?.textContent?.trim() || "" };
     })
     .filter((row): row is ResultRow => row !== null);
@@ -229,14 +237,20 @@ function refreshHealthAndGutter(): void {
   // both figures.
   const verifiedCount = hallucinationRows.filter((row) => row.status === "ok").length;
   const formattingIssueCount = bluebookRows.filter((row) => row.status !== "ok").length;
-  const possibleHallucinationCount = hallucinationRows.filter((row) => row.status === "error").length;
+  const possibleHallucinationCount = hallucinationRows.filter(
+    (row) => row.status === "error",
+  ).length;
 
   renderHealthSummary(verifiedCount, formattingIssueCount, possibleHallucinationCount);
   renderStatusBarCounts(verifiedCount, formattingIssueCount, possibleHallucinationCount);
   renderGutter(bluebookRows, hallucinationRows);
 }
 
-function renderHealthSummary(verified: number, formattingIssues: number, hallucinations: number): void {
+function renderHealthSummary(
+  verified: number,
+  formattingIssues: number,
+  hallucinations: number,
+): void {
   const container = $("stu-health-summary");
   if (!container) {
     return;
@@ -244,8 +258,16 @@ function renderHealthSummary(verified: number, formattingIssues: number, halluci
   container.innerHTML = "";
   const rows: { count: number; label: string; kind: "ok" | "warning" | "error" }[] = [
     { count: verified, label: `${verified} verified`, kind: "ok" },
-    { count: formattingIssues, label: `${formattingIssues} formatting issue${formattingIssues === 1 ? "" : "s"}`, kind: "warning" },
-    { count: hallucinations, label: `${hallucinations} possible hallucination${hallucinations === 1 ? "" : "s"}`, kind: "error" },
+    {
+      count: formattingIssues,
+      label: `${formattingIssues} formatting issue${formattingIssues === 1 ? "" : "s"}`,
+      kind: "warning",
+    },
+    {
+      count: hallucinations,
+      label: `${hallucinations} possible hallucination${hallucinations === 1 ? "" : "s"}`,
+      kind: "error",
+    },
   ];
   if (rows.every((row) => row.count === 0)) {
     const empty = document.createElement("p");
@@ -269,7 +291,11 @@ function renderHealthSummary(verified: number, formattingIssues: number, halluci
     });
 }
 
-function renderStatusBarCounts(verified: number, formattingIssues: number, hallucinations: number): void {
+function renderStatusBarCounts(
+  verified: number,
+  formattingIssues: number,
+  hallucinations: number,
+): void {
   const verifiedEl = $("stu-status-verified");
   const warningEl = $("stu-status-warning");
   const errorEl = $("stu-status-error");
@@ -277,7 +303,8 @@ function renderStatusBarCounts(verified: number, formattingIssues: number, hallu
     verifiedEl.textContent = verified > 0 ? `● ${verified} verified` : "";
   }
   if (warningEl) {
-    warningEl.textContent = formattingIssues > 0 ? `● ${formattingIssues} issue${formattingIssues === 1 ? "" : "s"}` : "";
+    warningEl.textContent =
+      formattingIssues > 0 ? `● ${formattingIssues} issue${formattingIssues === 1 ? "" : "s"}` : "";
   }
   if (errorEl) {
     errorEl.textContent = hallucinations > 0 ? `● ${hallucinations} flagged` : "";
@@ -292,8 +319,12 @@ function renderGutter(bluebookRows: ResultRow[], hallucinationRows: ResultRow[])
   gutter.innerHTML = "";
 
   const flagged = [
-    ...bluebookRows.filter((row) => row.status !== "ok").map((row) => ({ row, source: "Bluebook Check" })),
-    ...hallucinationRows.filter((row) => row.status !== "ok").map((row) => ({ row, source: "Find Hallucinations" })),
+    ...bluebookRows
+      .filter((row) => row.status !== "ok")
+      .map((row) => ({ row, source: "Bluebook Check" })),
+    ...hallucinationRows
+      .filter((row) => row.status !== "ok")
+      .map((row) => ({ row, source: "Find Hallucinations" })),
   ];
 
   flagged.forEach(({ row, source }) => {
@@ -369,7 +400,9 @@ function insertHyperlink(): void {
     return;
   }
   if (!isSafeHyperlinkUrl(trimmed)) {
-    setStudioStatus('That URL doesn\'t look safe to link to -- only "http://" and "https://" links are allowed.');
+    setStudioStatus(
+      'That URL doesn\'t look safe to link to -- only "http://" and "https://" links are allowed.',
+    );
     return;
   }
 
@@ -412,9 +445,18 @@ function insertHyperlink(): void {
 // on this page, with no change to that bundle. Only `__openclerkScribe` (the loader's own export)
 // is new to declare.
 type StudioPdfPage = { pageNumber: number; text: string; source: "embedded" | "ocr" | "empty" };
+type ScribeProgress = { onProgress?: (message: string) => void };
+type ImportedHeading = { text: string; level: number };
+type ImportedPdf = {
+  markdown: string;
+  headings: ImportedHeading[];
+  stats: { pages: number; words: number; textNative: boolean; lowConfidenceWords: string[] };
+};
 interface ScribeApi {
-  extractPdfText: (file: File, options?: { onProgress?: (message: string) => void }) => Promise<StudioPdfPage[]>;
-  exportSearchablePdf: (file: File, options?: { onProgress?: (message: string) => void }) => Promise<ArrayBuffer>;
+  extractPdfText: (file: File, options?: ScribeProgress) => Promise<StudioPdfPage[]>;
+  exportSearchablePdf: (file: File, options?: ScribeProgress) => Promise<ArrayBuffer>;
+  importPdfData: (file: File, options?: ScribeProgress) => Promise<ImportedPdf>;
+  convertPdfToDocx: (file: File, options?: ScribeProgress) => Promise<ArrayBuffer>;
 }
 declare global {
   interface Window {
@@ -467,7 +509,7 @@ function downloadBlob(data: ArrayBuffer, filename: string, mimeType: string): vo
 
 async function handleSearchablePdfExport(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
-  const file = input.files && input.files[0];
+  const file = input.files?.[0];
   input.value = "";
   if (!file) {
     return;
@@ -479,6 +521,250 @@ async function handleSearchablePdfExport(event: Event): Promise<void> {
     const base = file.name.replace(/\.pdf$/i, "");
     downloadBlob(buffer, `${base}-searchable.pdf`, "application/pdf");
     setStudioStatus(`Downloaded "${base}-searchable.pdf".`);
+  } catch (error) {
+    setStudioStatus(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// ---- Scribe: styled PDF import (Markdown -> editable document HTML) ----
+// scribe returns its recognition as Markdown (see scribe-loader.mjs for why Markdown, not its
+// HTML export). This turns that Markdown into the same block HTML the editor already understands
+// -- headings feed the outline, bold/italic survive .odt export, and Markdown tables become real
+// <table>s -- so a scanned filing comes in formatted, not as a wall of plain text.
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Inline Markdown -> HTML for the small subset scribe emits: bold (**x**) and italic (*x*). */
+function renderInlineMarkdown(text: string): string {
+  return escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/\*([^*]+)\*/g, "<i>$1</i>");
+}
+
+function isTableRow(line: string): boolean {
+  return /^\s*\|.*\|\s*$/.test(line);
+}
+
+/** Splits a Markdown table row `| a | b |` into its trimmed cell strings. */
+function splitTableCells(row: string): string[] {
+  return row
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderTable(rows: string[]): string {
+  // A Markdown table is a header row, a `| --- | --- |` separator, then body rows. If the second
+  // row isn't a separator, treat every row as a body row (scribe usually emits the separator).
+  const hasHeader = rows.length >= 2 && /^\s*\|[\s:|-]+\|\s*$/.test(rows[1]);
+  const headerCells = hasHeader ? splitTableCells(rows[0]) : null;
+  const bodyRows = hasHeader ? rows.slice(2) : rows;
+
+  const thead = headerCells
+    ? `<thead><tr>${headerCells.map((c) => `<th>${renderInlineMarkdown(c)}</th>`).join("")}</tr></thead>`
+    : "";
+  const tbody = bodyRows
+    .map(
+      (row) =>
+        `<tr>${splitTableCells(row)
+          .map((c) => `<td>${renderInlineMarkdown(c)}</td>`)
+          .join("")}</tr>`,
+    )
+    .join("");
+  return `<table class="oc-import-table">${thead}<tbody>${tbody}</tbody></table>`;
+}
+
+/** Normalizes a line/heading to compare them: drops emphasis markers and collapses whitespace. */
+function normalizeHeadingKey(text: string): string {
+  return text.replace(/\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Turns scribe's Markdown into editor block HTML: headings, tables, and paragraphs.
+ * `headings` is scribe's layout-detected heading list (text + level); because scribe renders
+ * headings as plain bold lines in its Markdown rather than `#`, a fully-bold line whose text
+ * matches one of these becomes a real <hN> (feeding Studio's outline) instead of a bold paragraph.
+ */
+function markdownToHtml(markdown: string, headings: ImportedHeading[] = []): string {
+  const headingLevels = new Map<string, number>();
+  for (const h of headings) {
+    const key = normalizeHeadingKey(h.text);
+    if (key) headingLevels.set(key, Math.min(Math.max(h.level, 1), 3));
+  }
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const blocks: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) {
+      continue;
+    }
+    if (isTableRow(line)) {
+      const rows: string[] = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(lines[i]);
+        i++;
+      }
+      i--;
+      blocks.push(renderTable(rows));
+      continue;
+    }
+    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    if (heading) {
+      const level = heading[1].length;
+      blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+      continue;
+    }
+    // A line that is a single bold span (`**...**`, no other content) and whose text matches a
+    // layout-detected heading is rendered as <hN>. Anything else -- including ordinary bold lines
+    // scribe didn't classify as a heading -- falls through to normal rendering.
+    const boldLine = /^\*\*(.+)\*\*$/.exec(line.trim());
+    if (boldLine && !boldLine[1].includes("**")) {
+      const level = headingLevels.get(normalizeHeadingKey(boldLine[1]));
+      if (level) {
+        blocks.push(`<h${level}>${renderInlineMarkdown(boldLine[1])}</h${level}>`);
+        continue;
+      }
+    }
+    // Legal documents number their own paragraphs ("1. ...", "2. ..."), so a leading number is
+    // kept as body text rather than turned into an <ol> that would renumber it. Only real "- "
+    // bullets become list items.
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      blocks.push(`<ul><li>${renderInlineMarkdown(bullet[1])}</li></ul>`);
+      continue;
+    }
+    blocks.push(`<p>${renderInlineMarkdown(line)}</p>`);
+  }
+  return blocks.join("") || "<p><br></p>";
+}
+
+/**
+ * Wraps occurrences of the low-confidence word strings inside `root`'s text nodes in
+ * <mark class="oc-lowconf">, so the reader can see exactly which words scribe was unsure about.
+ * Operates on text nodes only (never on the HTML markup), matching the whole token strings scribe
+ * reported (they include their own punctuation, e.g. "AVIANCA,").
+ */
+function highlightLowConfidence(root: HTMLElement, words: string[]): void {
+  const distinct = [...new Set(words.filter((w) => w.trim().length >= 2))];
+  if (distinct.length === 0) {
+    return;
+  }
+  // Longest first so a token isn't half-matched by a shorter one it contains.
+  distinct.sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(
+    distinct.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
+    "g",
+  );
+
+  const textNodes: Text[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    textNodes.push(node as Text);
+    node = walker.nextNode();
+  }
+
+  const isLetter = (ch: string | undefined): boolean => ch !== undefined && /[A-Za-z]/.test(ch);
+
+  textNodes.forEach((textNode) => {
+    const value = textNode.nodeValue || "";
+    pattern.lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    let matched = false;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-exec loop idiom
+    while ((match = pattern.exec(value)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      if (match[0].length === 0) {
+        pattern.lastIndex++;
+        continue;
+      }
+      // Skip a match that sits inside a larger word (e.g. token "AVIAN" inside "AVIANCA") -- only
+      // highlight it as a standalone token, not a substring.
+      if (isLetter(value[start - 1]) || isLetter(value[end])) {
+        continue;
+      }
+      matched = true;
+      if (start > lastIndex) {
+        fragment.appendChild(document.createTextNode(value.slice(lastIndex, start)));
+      }
+      const mark = document.createElement("mark");
+      mark.className = "oc-lowconf";
+      mark.title = "Low-confidence OCR — verify this word against the original.";
+      mark.textContent = match[0];
+      fragment.appendChild(mark);
+      lastIndex = end;
+    }
+    if (!matched) {
+      return;
+    }
+    if (lastIndex < value.length) {
+      fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+    }
+    textNode.parentNode?.replaceChild(fragment, textNode);
+  });
+}
+
+async function handlePdfImport(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) {
+    return;
+  }
+  const doc = $("document-surface");
+  if (!doc) {
+    return;
+  }
+  try {
+    setStudioStatus(`Importing "${file.name}" (OCR can take a while for scanned pages)...`);
+    const scribe = await ensureScribe();
+    const { markdown, headings, stats } = await scribe.importPdfData(file, {
+      onProgress: setStudioStatus,
+    });
+
+    doc.innerHTML = markdownToHtml(markdown, headings);
+    highlightLowConfidence(doc, stats.lowConfidenceWords);
+    refreshOutline();
+
+    const lowCount = stats.lowConfidenceWords.length;
+    const lowNote =
+      lowCount > 0
+        ? ` ${lowCount} low-confidence word(s) are highlighted -- verify them against the original.`
+        : "";
+    const headingNote = headings.length > 0 ? ` ${headings.length} heading(s) detected.` : "";
+    const kind = stats.textNative ? "text" : "OCR";
+    setStudioStatus(
+      `Imported "${file.name}" (${stats.pages} page(s), ${stats.words.toLocaleString()} words, via ${kind}) with formatting preserved.${headingNote}${lowNote}`,
+    );
+  } catch (error) {
+    setStudioStatus(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function handlePdfToDocx(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) {
+    return;
+  }
+  try {
+    setStudioStatus(`Converting "${file.name}" to Word (OCR can take a while)...`);
+    const scribe = await ensureScribe();
+    const buffer = await scribe.convertPdfToDocx(file, { onProgress: setStudioStatus });
+    const base = file.name.replace(/\.pdf$/i, "");
+    downloadBlob(
+      buffer,
+      `${base}.docx`,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    setStudioStatus(`Downloaded "${base}.docx".`);
   } catch (error) {
     setStudioStatus(error instanceof Error ? error.message : String(error));
   }
@@ -530,8 +816,12 @@ function toggleView(panelId: string, buttonId: string): void {
 }
 
 function wireViewMenu(): void {
-  $("stu-view-toggle-outline")?.addEventListener("click", () => toggleView("stu-outline", "stu-view-toggle-outline"));
-  $("stu-view-toggle-gutter")?.addEventListener("click", () => toggleView("stu-gutter", "stu-view-toggle-gutter"));
+  $("stu-view-toggle-outline")?.addEventListener("click", () =>
+    toggleView("stu-outline", "stu-view-toggle-outline"),
+  );
+  $("stu-view-toggle-gutter")?.addEventListener("click", () =>
+    toggleView("stu-gutter", "stu-view-toggle-gutter"),
+  );
 }
 
 // ---- Wiring ----
@@ -552,9 +842,17 @@ function init(): void {
   // editor-bundle.js already consumes. The wrapper is set immediately but loads scribe lazily, so
   // loading a .pdf via "Load from file" here uses scribe instead of the tesseract editor-pdf-bundle.
   window.__openclerkExtractPdfText = (file, options) =>
-    ensureScribe().then((scribe) => scribe.extractPdfText(file, { onProgress: options?.onProgress }));
-  $("stu-save-searchable-pdf")?.addEventListener("click", () => $("stu-searchable-pdf-input")?.click());
+    ensureScribe().then((scribe) =>
+      scribe.extractPdfText(file, { onProgress: options?.onProgress }),
+    );
+  $("stu-save-searchable-pdf")?.addEventListener("click", () =>
+    $("stu-searchable-pdf-input")?.click(),
+  );
   $("stu-searchable-pdf-input")?.addEventListener("change", handleSearchablePdfExport);
+  $("stu-import-pdf")?.addEventListener("click", () => $("stu-import-pdf-input")?.click());
+  $("stu-import-pdf-input")?.addEventListener("change", handlePdfImport);
+  $("stu-pdf-to-docx")?.addEventListener("click", () => $("stu-pdf-to-docx-input")?.click());
+  $("stu-pdf-to-docx-input")?.addEventListener("change", handlePdfToDocx);
 
   openWorkflow("manage-hyperlinks");
   closeWorkflow();
@@ -584,7 +882,10 @@ function init(): void {
     if (!container) {
       return;
     }
-    new MutationObserver(refreshHealthAndGutter).observe(container, { childList: true, subtree: true });
+    new MutationObserver(refreshHealthAndGutter).observe(container, {
+      childList: true,
+      subtree: true,
+    });
   });
 }
 
@@ -604,6 +905,10 @@ export {
   insertHyperlink,
   ensureScribe,
   handleSearchablePdfExport,
+  handlePdfImport,
+  handlePdfToDocx,
+  markdownToHtml,
+  highlightLowConfidence,
   selectAllDocument,
   toggleView,
 };

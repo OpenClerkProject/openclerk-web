@@ -72,6 +72,10 @@
                   <span class="stu-dropdown-icon">📄</span>Load from file&hellip;
                 </label>
                 <input type="file" id="load-file-input" accept=".txt,.docx,.odt,.pdf" class="stu-visually-hidden" />
+                <button type="button" class="stu-dropdown-item" id="stu-import-pdf" role="menuitem" title="Pick a PDF; OpenClerk OCRs it and imports the text with headings, bold/italic, and tables preserved.">
+                  <span class="stu-dropdown-icon">📥</span>Import PDF (keep formatting)&hellip;
+                </button>
+                <input type="file" id="stu-import-pdf-input" accept="application/pdf,.pdf" class="stu-visually-hidden" />
                 <button type="button" class="stu-dropdown-item" id="clear-document-button" role="menuitem">
                   <span class="stu-dropdown-icon">🗑</span>Clear document
                 </button>
@@ -87,6 +91,10 @@
                   <span class="stu-dropdown-icon">🔎</span>Save a PDF as searchable&hellip;
                 </button>
                 <input type="file" id="stu-searchable-pdf-input" accept="application/pdf,.pdf" class="stu-visually-hidden" />
+                <button type="button" class="stu-dropdown-item" id="stu-pdf-to-docx" role="menuitem" title="Pick a PDF; OpenClerk OCRs it and downloads an editable Word (.docx) file.">
+                  <span class="stu-dropdown-icon">📝</span>Convert a PDF to Word (.docx)&hellip;
+                </button>
+                <input type="file" id="stu-pdf-to-docx-input" accept="application/pdf,.pdf" class="stu-visually-hidden" />
                 <div class="stu-dropdown-divider"></div>
                 <a class="stu-dropdown-item" href="editor.html" role="menuitem">
                   <span class="stu-dropdown-icon">📱</span>Switch to Document Editor (mobile-friendly)

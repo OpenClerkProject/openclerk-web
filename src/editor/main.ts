@@ -1,24 +1,36 @@
 import {
+  type BluebookIssue,
+  type BluebookRuleSet,
+  type CitationProvider,
+  type OpinionTextCapableProvider,
+  type ParsedCitation,
   bluebookRuleSetRegistry,
   citationProviderRegistry,
+  expandPincitePages,
   extractCaseCitations,
   extractParentheticalCitations,
-  expandPincitePages,
   isSafeHyperlinkUrl,
   parseCaseCitation,
   supportsOpinionText,
   supportsRateLimitAwareness,
-  BluebookIssue,
-  BluebookRuleSet,
-  CitationProvider,
-  OpinionTextCapableProvider,
-  ParsedCitation,
 } from "openclerk-core";
 import { extractTextFromFile } from "../fileText";
-import { findMatches, flashOccurrence, getPlainText, isInsideMatch, unwrapElements, wrapRange } from "./dom";
+import {
+  findMatches,
+  flashOccurrence,
+  getPlainText,
+  isInsideMatch,
+  unwrapElements,
+  wrapRange,
+} from "./dom";
 import { buildOdtArchive, buildPlainTextExport, downloadFile } from "./exportDocument";
 import { initFormattingToolbar } from "./formatting";
-import { CASE_HYPERLINK_CLASS, PARENTHETICAL_HYPERLINK_CLASS, EMBED_NOTE_CLASS, EMBED_EXCERPT_CLASS } from "./markers";
+import {
+  CASE_HYPERLINK_CLASS,
+  EMBED_EXCERPT_CLASS,
+  EMBED_NOTE_CLASS,
+  PARENTHETICAL_HYPERLINK_CLASS,
+} from "./markers";
 
 type TabId = "manage-hyperlinks" | "bluebook-check" | "hallucination-check" | "embed-cited-text";
 type ParentheticalEntry = { citation: string; url: string; id: string };
@@ -29,7 +41,11 @@ type HallucinationResult = {
   skippedProviders: string[];
   rateLimitedProviders: string[];
 };
-type BluebookCheckedCitation = { raw: string; parsed: ParsedCitation | null; issues: BluebookIssue[] };
+type BluebookCheckedCitation = {
+  raw: string;
+  parsed: ParsedCitation | null;
+  issues: BluebookIssue[];
+};
 type EmbedTextResult = { raw: string; embedded: boolean; reason: string | null };
 
 // Mirrors pdf/pdfText.ts's PageExtraction/extractPdfText shapes by hand rather than importing
@@ -40,7 +56,7 @@ type EmbedTextResult = { raw: string; embedded: boolean; reason: string | null }
 type PdfPageExtraction = { pageNumber: number; text: string; source: "embedded" | "ocr" | "empty" };
 type ExtractPdfTextFn = (
   file: File,
-  options?: { ocr?: boolean; onProgress?: (message: string) => void }
+  options?: { ocr?: boolean; onProgress?: (message: string) => void },
 ) => Promise<PdfPageExtraction[]>;
 
 declare global {
@@ -74,7 +90,11 @@ function button(id: string): HTMLButtonElement | null {
 // against the same underlying problem: a workflow here reads the document into DOM Text-node
 // Ranges up front and mutates them after an async provider lookup, so a second click or a live
 // edit landing mid-run could operate on stale positions or duplicate work already in flight.
-async function withBusyButton(btn: HTMLButtonElement | null, lockDocument: boolean, action: () => Promise<void>): Promise<void> {
+async function withBusyButton(
+  btn: HTMLButtonElement | null,
+  lockDocument: boolean,
+  action: () => Promise<void>,
+): Promise<void> {
   const root = lockDocument ? getDocumentSurface() : null;
   if (btn) {
     btn.disabled = true;
@@ -150,7 +170,7 @@ async function loadPdfIntoDocument(file: File, statusEl: HTMLElement): Promise<v
 async function handleDocumentFileUpload(): Promise<void> {
   const fileInput = document.getElementById("load-file-input") as HTMLInputElement;
   const statusEl = document.getElementById("load-file-status")!;
-  const file = fileInput.files && fileInput.files[0];
+  const file = fileInput.files?.[0];
   if (!file) {
     return;
   }
@@ -303,7 +323,9 @@ async function connectSelectedProvider(): Promise<void> {
 
   const credentials: Record<string, string> = {};
   provider.credentialFields.forEach((field) => {
-    const input = document.getElementById(`credential-${provider.id}-${field.key}`) as HTMLInputElement | null;
+    const input = document.getElementById(
+      `credential-${provider.id}-${field.key}`,
+    ) as HTMLInputElement | null;
     credentials[field.key] = input?.value ?? "";
   });
 
@@ -312,7 +334,9 @@ async function connectSelectedProvider(): Promise<void> {
     await provider.authenticate(credentials);
     setStatus(`Connected to ${provider.name}.`);
   } catch (error) {
-    setStatus(`Unable to connect to ${provider.name}. ${error instanceof Error ? error.message : String(error)}`);
+    setStatus(
+      `Unable to connect to ${provider.name}. ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
   updateProviderAuthStatus();
 }
@@ -362,7 +386,9 @@ async function applyHyperlinksViaProvider(): Promise<void> {
       continue;
     }
 
-    const unlinkedMatches = allMatches.filter((m) => !isInsideMatch(m.range.startContainer, root, "a"));
+    const unlinkedMatches = allMatches.filter(
+      (m) => !isInsideMatch(m.range.startContainer, root, "a"),
+    );
     if (unlinkedMatches.length === 0) {
       linkedCount += 1;
       continue;
@@ -386,7 +412,9 @@ async function applyHyperlinksViaProvider(): Promise<void> {
         a.href = match.url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
-        a.title = match.citation ? `${match.citation} — via ${provider.name}` : `Via ${provider.name}`;
+        a.title = match.citation
+          ? `${match.citation} — via ${provider.name}`
+          : `Via ${provider.name}`;
         return a;
       });
     });
@@ -399,7 +427,7 @@ async function applyHyperlinksViaProvider(): Promise<void> {
       : "";
   setStatus(
     `Linked ${linkedCount} of ${candidates.length} citation(s) via ${provider.name}. ` +
-      `${skippedCount} could not be resolved and were left unchanged.${rateLimitNote}`
+      `${skippedCount} could not be resolved and were left unchanged.${rateLimitNote}`,
   );
 }
 
@@ -412,12 +440,16 @@ async function removeCaseLawHyperlinks(): Promise<void> {
 
 async function scanParentheticalCitations(): Promise<void> {
   const citations = extractParentheticalCitations(getPlainText(getDocumentSurface()));
-  parentheticalEntries = citations.map((citation, index) => ({ citation, url: "", id: `parenthetical-${index}` }));
+  parentheticalEntries = citations.map((citation, index) => ({
+    citation,
+    url: "",
+    id: `parenthetical-${index}`,
+  }));
   renderParentheticalEntries();
   setStatus(
     parentheticalEntries.length === 0
       ? "No parenthetical citations were found in the document."
-      : `Found ${parentheticalEntries.length} parenthetical citation(s).`
+      : `Found ${parentheticalEntries.length} parenthetical citation(s).`,
   );
 }
 
@@ -434,7 +466,9 @@ async function addParentheticalHyperlinks(): Promise<void> {
 
   let addedCount = 0;
   for (const entry of validEntries) {
-    const matches = findMatches(root, entry.citation).filter((m) => !isInsideMatch(m.range.startContainer, root, "a"));
+    const matches = findMatches(root, entry.citation).filter(
+      (m) => !isInsideMatch(m.range.startContainer, root, "a"),
+    );
     matches.forEach((m) => {
       const wrapped = wrapRange(m.range, () => {
         const a = document.createElement("a");
@@ -560,7 +594,9 @@ async function checkBluebookCitations(): Promise<void> {
       return { raw, parsed, issues: parsed ? ruleSet.checkCitation(parsed) : [] };
     });
   } catch (error) {
-    setStatus(`Something went wrong while checking citations. ${error instanceof Error ? error.message : String(error)}`);
+    setStatus(
+      `Something went wrong while checking citations. ${error instanceof Error ? error.message : String(error)}`,
+    );
     return;
   }
 
@@ -573,17 +609,19 @@ async function checkBluebookCitations(): Promise<void> {
 
   const errorCount = lastBluebookResults.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "error").length,
-    0
+    0,
   );
   const warningCount = lastBluebookResults.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "warning").length,
-    0
+    0,
   );
-  const flaggedCount = lastBluebookResults.filter((result) => !result.parsed || result.issues.length > 0).length;
+  const flaggedCount = lastBluebookResults.filter(
+    (result) => !result.parsed || result.issues.length > 0,
+  ).length;
 
   setStatus(
     `Checked ${candidates.length} citation(s) against the ${ruleSet.name}; ${flaggedCount} flagged ` +
-      `(${errorCount} error(s), ${warningCount} warning(s)).`
+      `(${errorCount} error(s), ${warningCount} warning(s)).`,
   );
 }
 
@@ -605,31 +643,41 @@ function renderBluebookResults(): void {
   }
 
   if (lastBluebookResults === null) {
-    container.innerHTML = '<p class="helper-text">No case citations found yet. Click "Check citations".</p>';
+    container.innerHTML =
+      '<p class="helper-text">No case citations found yet. Click "Check citations".</p>';
     return;
   }
   if (lastBluebookResults.length === 0) {
-    container.innerHTML = '<p class="helper-text">No case citations were found in the document.</p>';
+    container.innerHTML =
+      '<p class="helper-text">No case citations were found in the document.</p>';
     return;
   }
 
   const errorCount = lastBluebookResults.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "error").length,
-    0
+    0,
   );
   const warningCount = lastBluebookResults.reduce(
     (count, result) => count + result.issues.filter((issue) => issue.severity === "warning").length,
-    0
+    0,
   );
-  const cleanCount = lastBluebookResults.filter((result) => result.parsed && result.issues.length === 0).length;
+  const cleanCount = lastBluebookResults.filter(
+    (result) => result.parsed && result.issues.length === 0,
+  ).length;
 
   if (summaryEl) {
     const parts: { text: string; className: string }[] = [];
     if (errorCount > 0) {
-      parts.push({ text: `${errorCount} error${errorCount === 1 ? "" : "s"}`, className: "summary-errors" });
+      parts.push({
+        text: `${errorCount} error${errorCount === 1 ? "" : "s"}`,
+        className: "summary-errors",
+      });
     }
     if (warningCount > 0) {
-      parts.push({ text: `${warningCount} warning${warningCount === 1 ? "" : "s"}`, className: "summary-warnings" });
+      parts.push({
+        text: `${warningCount} warning${warningCount === 1 ? "" : "s"}`,
+        className: "summary-warnings",
+      });
     }
     parts.push({ text: `${cleanCount} clean`, className: "summary-ok" });
     parts.forEach((part, index) => {
@@ -648,7 +696,8 @@ function renderBluebookResults(): void {
     : lastBluebookResults;
 
   if (visibleResults.length === 0) {
-    container.innerHTML = '<p class="helper-text">No flagged citations -- everything checked out clean.</p>';
+    container.innerHTML =
+      '<p class="helper-text">No flagged citations -- everything checked out clean.</p>';
     return;
   }
 
@@ -680,7 +729,9 @@ function renderBluebookResults(): void {
       result.textContent = "No issues found.";
       row.appendChild(result);
     } else {
-      row.classList.add(issues.some((issue) => issue.severity === "error") ? "status-error" : "status-warning");
+      row.classList.add(
+        issues.some((issue) => issue.severity === "error") ? "status-error" : "status-warning",
+      );
       const list = document.createElement("ul");
       list.className = "bluebook-issue-item-list";
       issues.forEach((issue) => {
@@ -691,7 +742,9 @@ function renderBluebookResults(): void {
         tag.textContent = issue.ruleId;
         item.appendChild(tag);
         item.appendChild(
-          document.createTextNode(`${issue.severity === "error" ? "Error" : "Warning"}: ${issue.message}`)
+          document.createTextNode(
+            `${issue.severity === "error" ? "Error" : "Warning"}: ${issue.message}`,
+          ),
         );
         list.appendChild(item);
       });
@@ -706,7 +759,9 @@ function renderBluebookResults(): void {
 // ---- Find Hallucinations ----
 
 function populateHallucinationProviderList(): void {
-  hallucinationProviderOrder = citationProviderRegistry.list().map((provider) => ({ id: provider.id, checked: false }));
+  hallucinationProviderOrder = citationProviderRegistry
+    .list()
+    .map((provider) => ({ id: provider.id, checked: false }));
   renderHallucinationProviderList();
 }
 
@@ -832,15 +887,19 @@ async function checkForHallucinations(): Promise<void> {
 
   renderHallucinationResults(results);
 
-  const rateLimitedCount = results.filter((result) => !result.verifiedVia && result.rateLimitedProviders.length > 0).length;
-  const flaggedCount = results.filter((result) => !result.verifiedVia && result.rateLimitedProviders.length === 0).length;
+  const rateLimitedCount = results.filter(
+    (result) => !result.verifiedVia && result.rateLimitedProviders.length > 0,
+  ).length;
+  const flaggedCount = results.filter(
+    (result) => !result.verifiedVia && result.rateLimitedProviders.length === 0,
+  ).length;
   const rateLimitNote =
     rateLimitedCount > 0
       ? ` ${rateLimitedCount} could not be checked because a platform rate-limited the request -- wait a minute and try again.`
       : "";
   setStatus(
     `Checked ${results.length} citation(s) against ${selectedProviders.length} platform(s); ` +
-      `${flaggedCount} could not be verified on any selected platform.${rateLimitNote}`
+      `${flaggedCount} could not be verified on any selected platform.${rateLimitNote}`,
   );
 }
 
@@ -966,11 +1025,15 @@ async function embedCitedOpinionText(): Promise<void> {
   const candidates = extractCaseCitations(getPlainText(root));
   const pinciteCitations = candidates
     .map((raw) => ({ raw, parsed: parseCaseCitation(raw) }))
-    .filter((item): item is { raw: string; parsed: ParsedCitation } => Boolean(item.parsed?.pincite));
+    .filter((item): item is { raw: string; parsed: ParsedCitation } =>
+      Boolean(item.parsed?.pincite),
+    );
 
   if (pinciteCitations.length === 0) {
     renderEmbedTextResults([]);
-    setStatus("No citations with a pincite (a page beyond the first page) were found in the document.");
+    setStatus(
+      "No citations with a pincite (a page beyond the first page) were found in the document.",
+    );
     return;
   }
 
@@ -979,7 +1042,7 @@ async function embedCitedOpinionText(): Promise<void> {
   // One citation at a time -- same rate-limit reasoning as the other provider-backed workflows.
   for (const { raw, parsed } of pinciteCitations) {
     const alreadyEmbedded = Array.from(root.querySelectorAll(`.${EMBED_NOTE_CLASS}`)).some(
-      (el) => el.getAttribute("data-citation") === raw
+      (el) => el.getAttribute("data-citation") === raw,
     );
     if (alreadyEmbedded) {
       results.push({ raw, embedded: true, reason: null });
@@ -1005,7 +1068,11 @@ async function embedCitedOpinionText(): Promise<void> {
     const matches = findMatches(root, raw);
     const firstMatch = matches[matches.length - 1];
     if (!firstMatch) {
-      results.push({ raw, embedded: false, reason: "Could not find this citation's text in the document." });
+      results.push({
+        raw,
+        embedded: false,
+        reason: "Could not find this citation's text in the document.",
+      });
       continue;
     }
 
@@ -1021,7 +1088,11 @@ async function embedCitedOpinionText(): Promise<void> {
     });
 
     if (!wrapped) {
-      results.push({ raw, embedded: false, reason: "Could not attach the excerpt to this citation." });
+      results.push({
+        raw,
+        embedded: false,
+        reason: "Could not attach the excerpt to this citation.",
+      });
       continue;
     }
 
@@ -1030,7 +1101,9 @@ async function embedCitedOpinionText(): Promise<void> {
 
   renderEmbedTextResults(results);
   const embeddedCount = results.filter((result) => result.embedded).length;
-  setStatus(`Embedded opinion text for ${embeddedCount} of ${pinciteCitations.length} pincite citation(s).`);
+  setStatus(
+    `Embedded opinion text for ${embeddedCount} of ${pinciteCitations.length} pincite citation(s).`,
+  );
 }
 
 async function removeEmbeddedCitationText(): Promise<void> {
@@ -1052,7 +1125,8 @@ function renderEmbedTextResults(results: EmbedTextResult[]): void {
     summaryEl.innerHTML = "";
   }
   if (results.length === 0) {
-    container.innerHTML = '<p class="helper-text">No results yet. Click "Embed cited opinion text".</p>';
+    container.innerHTML =
+      '<p class="helper-text">No results yet. Click "Embed cited opinion text".</p>';
     return;
   }
 
@@ -1091,7 +1165,8 @@ function renderEmbedTextResults(results: EmbedTextResult[]): void {
     if (result.embedded) {
       row.classList.add("status-ok");
       status.classList.add("issue-ok");
-      status.textContent = "Embedded -- click the highlighted citation in the document to expand it.";
+      status.textContent =
+        "Embedded -- click the highlighted citation in the document to expand it.";
     } else {
       row.classList.add("status-error");
       status.classList.add("issue-flagged");
@@ -1106,7 +1181,7 @@ function renderEmbedTextResults(results: EmbedTextResult[]): void {
 
 function toggleEmbedNote(note: HTMLElement): void {
   const next = note.nextElementSibling;
-  if (next && next.classList.contains(EMBED_EXCERPT_CLASS)) {
+  if (next?.classList.contains(EMBED_EXCERPT_CLASS)) {
     next.remove();
     return;
   }
@@ -1163,30 +1238,52 @@ function init(): void {
   document.getElementById("download-txt-button")!.addEventListener("click", downloadAsText);
   document
     .getElementById("download-odt-button")!
-    .addEventListener("click", () => withBusyButton(button("download-odt-button"), false, downloadAsOdt));
+    .addEventListener("click", () =>
+      withBusyButton(button("download-odt-button"), false, downloadAsOdt),
+    );
 
   document.getElementById("provider-select")!.addEventListener("change", renderProviderPanel);
   document
     .getElementById("provider-connect")!
-    .addEventListener("click", () => withBusyButton(button("provider-connect"), false, connectSelectedProvider));
+    .addEventListener("click", () =>
+      withBusyButton(button("provider-connect"), false, connectSelectedProvider),
+    );
   document
     .getElementById("provider-disconnect")!
-    .addEventListener("click", () => withBusyButton(button("provider-disconnect"), false, async () => disconnectSelectedProvider()));
+    .addEventListener("click", () =>
+      withBusyButton(button("provider-disconnect"), false, async () =>
+        disconnectSelectedProvider(),
+      ),
+    );
   document
     .getElementById("apply-online-hyperlinks")!
-    .addEventListener("click", () => withBusyButton(button("apply-online-hyperlinks"), true, applyHyperlinksViaProvider));
+    .addEventListener("click", () =>
+      withBusyButton(button("apply-online-hyperlinks"), true, applyHyperlinksViaProvider),
+    );
   document
     .getElementById("remove-hyperlinks")!
-    .addEventListener("click", () => withBusyButton(button("remove-hyperlinks"), true, removeCaseLawHyperlinks));
+    .addEventListener("click", () =>
+      withBusyButton(button("remove-hyperlinks"), true, removeCaseLawHyperlinks),
+    );
   document
     .getElementById("scan-parentheticals")!
-    .addEventListener("click", () => withBusyButton(button("scan-parentheticals"), true, scanParentheticalCitations));
+    .addEventListener("click", () =>
+      withBusyButton(button("scan-parentheticals"), true, scanParentheticalCitations),
+    );
   document
     .getElementById("add-parenthetical-hyperlinks")!
-    .addEventListener("click", () => withBusyButton(button("add-parenthetical-hyperlinks"), true, addParentheticalHyperlinks));
+    .addEventListener("click", () =>
+      withBusyButton(button("add-parenthetical-hyperlinks"), true, addParentheticalHyperlinks),
+    );
   document
     .getElementById("remove-parenthetical-hyperlinks")!
-    .addEventListener("click", () => withBusyButton(button("remove-parenthetical-hyperlinks"), true, removeParentheticalHyperlinks));
+    .addEventListener("click", () =>
+      withBusyButton(
+        button("remove-parenthetical-hyperlinks"),
+        true,
+        removeParentheticalHyperlinks,
+      ),
+    );
 
   document.getElementById("bluebook-edition-select")!.addEventListener("change", () => {
     renderBluebookEditionDescription();
@@ -1194,7 +1291,9 @@ function init(): void {
   });
   document
     .getElementById("check-bluebook-citations")!
-    .addEventListener("click", () => withBusyButton(button("check-bluebook-citations"), true, checkBluebookCitations));
+    .addEventListener("click", () =>
+      withBusyButton(button("check-bluebook-citations"), true, checkBluebookCitations),
+    );
   document.getElementById("bluebook-show-flagged-only")!.addEventListener("change", (event) => {
     bluebookShowFlaggedOnly = (event.target as HTMLInputElement).checked;
     renderBluebookResults();
@@ -1202,15 +1301,23 @@ function init(): void {
 
   document
     .getElementById("check-hallucinations")!
-    .addEventListener("click", () => withBusyButton(button("check-hallucinations"), true, checkForHallucinations));
+    .addEventListener("click", () =>
+      withBusyButton(button("check-hallucinations"), true, checkForHallucinations),
+    );
 
-  document.getElementById("embed-text-provider-select")!.addEventListener("change", renderEmbedTextProviderStatus);
+  document
+    .getElementById("embed-text-provider-select")!
+    .addEventListener("change", renderEmbedTextProviderStatus);
   document
     .getElementById("embed-cited-text")!
-    .addEventListener("click", () => withBusyButton(button("embed-cited-text"), true, embedCitedOpinionText));
+    .addEventListener("click", () =>
+      withBusyButton(button("embed-cited-text"), true, embedCitedOpinionText),
+    );
   document
     .getElementById("remove-embedded-text")!
-    .addEventListener("click", () => withBusyButton(button("remove-embedded-text"), true, removeEmbeddedCitationText));
+    .addEventListener("click", () =>
+      withBusyButton(button("remove-embedded-text"), true, removeEmbeddedCitationText),
+    );
 }
 
 if (document.readyState === "loading") {

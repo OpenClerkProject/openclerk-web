@@ -33,7 +33,7 @@ describe("openclerk-web examples page", () => {
     await Promise.resolve();
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      "Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009)"
+      "Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009)",
     );
   });
 

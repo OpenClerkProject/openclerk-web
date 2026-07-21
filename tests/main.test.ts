@@ -27,14 +27,10 @@ function selectFile(file: File): void {
 
 async function buildDocx(paragraphs: string[]): Promise<File> {
   const zip = new JSZip();
-  const body = paragraphs
-    .map((text) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`)
-    .join("");
+  const body = paragraphs.map((text) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`).join("");
   zip.file(
     "word/document.xml",
-    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
-      `<w:body>${body}</w:body></w:document>`
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`,
   );
   const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
   return new File([arrayBuffer], "brief.docx", {
@@ -48,10 +44,7 @@ async function buildOdt(paragraphs: string[]): Promise<File> {
   zip.file("mimetype", "application/vnd.oasis.opendocument.text", { compression: "STORE" });
   zip.file(
     "content.xml",
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
-      `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">` +
-      `<office:body><office:text>${body}</office:text></office:body></office:document-content>`
+    `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"><office:body><office:text>${body}</office:text></office:body></office:document-content>`,
   );
   const arrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
   return new File([arrayBuffer], "brief.odt", { type: "application/vnd.oasis.opendocument.text" });
@@ -110,7 +103,7 @@ describe("openclerk-web main", () => {
     const file = new File(
       ["Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)"],
       "brief.txt",
-      { type: "text/plain" }
+      { type: "text/plain" },
     );
     selectFile(file);
 
@@ -133,7 +126,7 @@ describe("openclerk-web main", () => {
 
     const textarea = document.getElementById("citation-input") as HTMLTextAreaElement;
     expect(textarea.value).toBe(
-      "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph."
+      "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph.",
     );
     expect(document.getElementById("file-status")!.textContent).toMatch(/Loaded "brief\.docx"/);
   });
@@ -150,7 +143,7 @@ describe("openclerk-web main", () => {
 
     const textarea = document.getElementById("citation-input") as HTMLTextAreaElement;
     expect(textarea.value).toBe(
-      "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph."
+      "Norfolk & W. Ry. Co. v. Liepelt, 444 U.S. 490 (U.S.Ill., 1980)\nSecond paragraph.",
     );
     expect(document.getElementById("file-status")!.textContent).toMatch(/Loaded "brief\.odt"/);
   });
