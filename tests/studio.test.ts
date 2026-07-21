@@ -8,6 +8,21 @@ function setUpDom(): void {
     <div id="stu-doc-title"></div>
 
     <span class="stu-menu-wrap">
+      <button type="button" id="stu-edit-menu-trigger"></button>
+      <div class="stu-dropdown" id="stu-edit-menu">
+        <button type="button" id="stu-edit-undo"></button>
+        <button type="button" id="stu-edit-redo"></button>
+        <button type="button" id="stu-edit-select-all"></button>
+      </div>
+    </span>
+    <span class="stu-menu-wrap">
+      <button type="button" id="stu-view-menu-trigger"></button>
+      <div class="stu-dropdown" id="stu-view-menu">
+        <button type="button" id="stu-view-toggle-outline" aria-checked="true"><span data-check>&#10003;</span></button>
+        <button type="button" id="stu-view-toggle-gutter" aria-checked="true"><span data-check>&#10003;</span></button>
+      </div>
+    </span>
+    <span class="stu-menu-wrap">
       <button type="button" id="stu-file-menu-trigger"></button>
       <div class="stu-dropdown" id="stu-file-menu">
         <label for="load-file-input">Load</label>
@@ -54,7 +69,9 @@ function setUpDom(): void {
       <button type="button" id="format-redo-button"></button>
     </div>
 
-    <nav id="stu-outline-list"></nav>
+    <div id="stu-outline">
+      <nav id="stu-outline-list"></nav>
+    </div>
     <div id="stu-health-summary"></div>
     <span id="stu-wordcount"></span>
     <span id="stu-edition-label"></span>
@@ -420,6 +437,69 @@ describe("OpenClerk Studio chrome", () => {
 
       await chrome.handleSearchablePdfExport({ target: input } as unknown as Event);
       expect(document.getElementById("status")!.textContent).toContain("OCR blew up");
+    });
+  });
+
+  describe("Edit menu", () => {
+    it("Undo / Redo forward to the formatting-toolbar buttons", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+
+      const undoSpy = jest.spyOn(document.getElementById("format-undo-button") as HTMLElement, "click");
+      const redoSpy = jest.spyOn(document.getElementById("format-redo-button") as HTMLElement, "click");
+
+      document.getElementById("stu-edit-undo")!.click();
+      document.getElementById("stu-edit-redo")!.click();
+
+      expect(undoSpy).toHaveBeenCalledTimes(1);
+      expect(redoSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("Select all selects the whole document surface", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      documentSurface().innerHTML = "<p>First line.</p><p>Second line.</p>";
+
+      document.getElementById("stu-edit-select-all")!.click();
+
+      const selection = document.getSelection()!;
+      expect(selection.rangeCount).toBe(1);
+      expect(selection.toString()).toContain("First line.");
+      expect(selection.toString()).toContain("Second line.");
+    });
+  });
+
+  describe("View menu", () => {
+    it("toggles the document outline's visibility and its checkmark", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      const outline = document.getElementById("stu-outline")!;
+      const button = document.getElementById("stu-view-toggle-outline")!;
+      const check = button.querySelector("[data-check]")!;
+
+      expect(outline.classList.contains("stu-hidden")).toBe(false);
+
+      button.click();
+      expect(outline.classList.contains("stu-hidden")).toBe(true);
+      expect(button.getAttribute("aria-checked")).toBe("false");
+      expect(check.textContent).toBe("");
+
+      button.click();
+      expect(outline.classList.contains("stu-hidden")).toBe(false);
+      expect(button.getAttribute("aria-checked")).toBe("true");
+      expect(check.textContent).toBe("✓");
+    });
+
+    it("toggles the comment gutter's visibility", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      const gutter = document.getElementById("stu-gutter")!;
+      const button = document.getElementById("stu-view-toggle-gutter")!;
+
+      button.click();
+      expect(gutter.classList.contains("stu-hidden")).toBe(true);
+      button.click();
+      expect(gutter.classList.contains("stu-hidden")).toBe(false);
     });
   });
 });

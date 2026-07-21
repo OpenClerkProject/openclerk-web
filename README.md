@@ -97,8 +97,13 @@ Studio adds, on top of everything the Document Editor already does:
   menu) looks a *case citation* up against a real provider before linking it; Insert > Hyperlink
   is the plain "link this text to a URL" command every word processor's Insert menu has, for
   everything else a legal document might reference (an exhibit, a docket entry, an external
-  page). Edit and View remain plain labels — there's no corresponding feature in this app yet for
-  either, and a dropdown with nothing real behind it would be worse than an honest static label.
+  page).
+- **A working Edit menu** — Undo / Redo (forwarding to the same formatting-toolbar buttons, so
+  `formatting.ts`'s execCommand handling stays the single source of truth) and Select all (via the
+  Selection API on the document surface).
+- **A working View menu** — toggles that show/hide the document outline sidebar and the comment
+  gutter (each a `menuitemcheckbox` whose checkmark tracks the current state), giving the document
+  more room when you don't need those panels.
 - **Left/justify paragraph alignment**, added to `src/editor/formatting.ts` (and so available on
   the plain Document Editor too — see its toolbar).
 - **A status bar**: live word count, the selected Bluebook edition, and the same citation-health
