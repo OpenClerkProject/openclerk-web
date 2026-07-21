@@ -26,10 +26,14 @@ function setUpDom(): void {
       <button type="button" id="stu-file-menu-trigger"></button>
       <div class="stu-dropdown" id="stu-file-menu">
         <label for="load-file-input">Load</label>
+        <button type="button" id="stu-import-pdf"></button>
+        <input type="file" id="stu-import-pdf-input" />
         <button type="button" id="download-txt-button"></button>
         <button type="button" id="download-odt-button"></button>
         <button type="button" id="stu-save-searchable-pdf"></button>
         <input type="file" id="stu-searchable-pdf-input" />
+        <button type="button" id="stu-pdf-to-docx"></button>
+        <input type="file" id="stu-pdf-to-docx-input" />
       </div>
     </span>
     <span class="stu-menu-wrap">
@@ -359,12 +363,19 @@ describe("OpenClerk Studio chrome", () => {
     type ScribeMock = {
       extractPdfText: jest.Mock;
       exportSearchablePdf: jest.Mock;
+      importPdfData: jest.Mock;
+      convertPdfToDocx: jest.Mock;
     };
 
     function seedScribe(overrides: Partial<ScribeMock> = {}): ScribeMock {
       const scribe: ScribeMock = {
         extractPdfText: jest.fn().mockResolvedValue([{ pageNumber: 1, text: "recovered ocr text", source: "ocr" }]),
         exportSearchablePdf: jest.fn().mockResolvedValue(new ArrayBuffer(64)),
+        importPdfData: jest.fn().mockResolvedValue({
+          markdown: "# Heading\n\nBody text.",
+          stats: { pages: 1, words: 3, textNative: true, lowConfidenceWords: [] },
+        }),
+        convertPdfToDocx: jest.fn().mockResolvedValue(new ArrayBuffer(128)),
         ...overrides,
       };
       // Pre-seeding the global is what the injected loader would do; chrome.ts's ensureScribe()
@@ -437,6 +448,121 @@ describe("OpenClerk Studio chrome", () => {
 
       await chrome.handleSearchablePdfExport({ target: input } as unknown as Event);
       expect(document.getElementById("status")!.textContent).toContain("OCR blew up");
+    });
+
+    it("imports a PDF's Markdown as formatted document HTML and reports stats", async () => {
+      seedScribe({
+        importPdfData: jest.fn().mockResolvedValue({
+          markdown: "**Damages Summary**\n\n| Category | Amount |\n| --- | --- |\n| Medical | $12,500 |",
+          stats: { pages: 2, words: 40, textNative: false, lowConfidenceWords: [] },
+        }),
+      });
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      const input = document.getElementById("stu-import-pdf-input") as HTMLInputElement;
+      Object.defineProperty(input, "files", {
+        value: [new File(["x"], "filing.pdf", { type: "application/pdf" })],
+        configurable: true,
+      });
+
+      await chrome.handlePdfImport({ target: input } as unknown as Event);
+
+      const surface = documentSurface();
+      expect(surface.querySelector("b")!.textContent).toBe("Damages Summary");
+      expect(surface.querySelector("table.oc-import-table")).not.toBeNull();
+      expect(surface.querySelector("td")!.textContent).toBe("Medical");
+      expect(document.getElementById("status")!.textContent).toMatch(/Imported "filing\.pdf" \(2 page\(s\), 40 words, via OCR\)/);
+    });
+
+    it("highlights low-confidence words reported by the import", async () => {
+      seedScribe({
+        importPdfData: jest.fn().mockResolvedValue({
+          markdown: "The AVIANCA appeal and the Affirma statement.",
+          stats: { pages: 1, words: 7, textNative: false, lowConfidenceWords: ["AVIANCA", "Affirma"] },
+        }),
+      });
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      const input = document.getElementById("stu-import-pdf-input") as HTMLInputElement;
+      Object.defineProperty(input, "files", { value: [new File(["x"], "s.pdf")], configurable: true });
+
+      await chrome.handlePdfImport({ target: input } as unknown as Event);
+
+      const marks = Array.from(documentSurface().querySelectorAll("mark.oc-lowconf")).map((m) => m.textContent);
+      expect(marks).toEqual(["AVIANCA", "Affirma"]);
+      expect(document.getElementById("status")!.textContent).toContain("2 low-confidence word(s)");
+    });
+
+    it("converts a PDF to Word (.docx) and triggers a download", async () => {
+      const scribe = seedScribe();
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = jest.fn().mockReturnValue("blob:mock");
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = jest.fn();
+      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+      const input = document.getElementById("stu-pdf-to-docx-input") as HTMLInputElement;
+      const file = new File(["x"], "brief.pdf", { type: "application/pdf" });
+      Object.defineProperty(input, "files", { value: [file], configurable: true });
+
+      await chrome.handlePdfToDocx({ target: input } as unknown as Event);
+
+      expect(scribe.convertPdfToDocx).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+      expect(anchorClick).toHaveBeenCalled();
+      expect(document.getElementById("status")!.textContent).toContain("brief.docx");
+    });
+  });
+
+  describe("markdownToHtml (scribe import rendering)", () => {
+    it("renders headings, bold, and italic", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml("## Section\n\nSome **bold** and *italic* text.");
+      expect(html).toContain("<h2>Section</h2>");
+      expect(html).toContain("<b>bold</b>");
+      expect(html).toContain("<i>italic</i>");
+    });
+
+    it("renders a Markdown table as a real <table> with header and body rows", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml("| A | B |\n| --- | --- |\n| 1 | 2 |");
+      expect(html).toContain('<table class="oc-import-table">');
+      expect(html).toContain("<th>A</th>");
+      expect(html).toContain("<td>1</td>");
+    });
+
+    it("keeps a legal-style numbered line as a paragraph, not an ordered list", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      const html = markdownToHtml("1. I am an attorney of record.");
+      expect(html).toContain("<p>1. I am an attorney of record.</p>");
+      expect(html).not.toContain("<ol>");
+    });
+
+    it("escapes HTML in the source text", () => {
+      const { markdownToHtml } = require("../src/studio/chrome");
+      expect(markdownToHtml("a < b & c > d")).toContain("a &lt; b &amp; c &gt; d");
+    });
+  });
+
+  describe("highlightLowConfidence", () => {
+    it("does not mark a token that only appears inside a larger word", () => {
+      const { highlightLowConfidence } = require("../src/studio/chrome");
+      const root = document.createElement("div");
+      root.innerHTML = "<p>The AVIANCA airline</p>"; // token "AVIAN" is a substring of AVIANCA
+      highlightLowConfidence(root, ["AVIAN"]);
+      expect(root.querySelectorAll("mark.oc-lowconf").length).toBe(0);
+    });
+
+    it("marks a standalone occurrence of a low-confidence token", () => {
+      const { highlightLowConfidence } = require("../src/studio/chrome");
+      const root = document.createElement("div");
+      root.innerHTML = "<p>The Affirma was filed.</p>";
+      highlightLowConfidence(root, ["Affirma"]);
+      const marks = root.querySelectorAll("mark.oc-lowconf");
+      expect(marks.length).toBe(1);
+      expect(marks[0].textContent).toBe("Affirma");
     });
   });
 

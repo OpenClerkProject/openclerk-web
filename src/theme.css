@@ -1032,6 +1032,32 @@ body.stu-body {
   margin: 0 0 13px;
 }
 
+/* Tables and low-confidence marks produced by the scribe PDF import (see studio/chrome.ts). */
+.oc-import-table {
+  border-collapse: collapse;
+  margin: 0 0 13px;
+  width: 100%;
+  font-size: 14px;
+}
+.oc-import-table th,
+.oc-import-table td {
+  border: 1px solid var(--color-rule);
+  padding: 5px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+.oc-import-table th {
+  background: var(--color-paper-dim);
+  font-weight: 600;
+}
+mark.oc-lowconf {
+  background: var(--color-redline-soft);
+  color: var(--color-redline);
+  border-bottom: 1px dotted var(--color-redline);
+  border-radius: 2px;
+  cursor: help;
+}
+
 .stu-gutter {
   flex: 1;
   min-width: 210px;

@@ -140,15 +140,29 @@ less than an import that isn't actually small.
 ### Higher-accuracy OCR + searchable-PDF output (scribe.js) — Studio only
 
 Studio uses **[scribe.js](https://github.com/scribeocr/scribe.js)** as its OCR engine, giving it
-three things the tesseract.js-based PDF & OCR Tools page can't do:
+several things the tesseract.js-based PDF & OCR Tools page can't do:
 
 - **Better OCR accuracy** when you load a scanned PDF via *File → Load from file* — scribe's
   custom model recovers more text than Tesseract's default engine.
-- **Font-style detection** — scribe reports bold/italic/font/size per word, and preserves them in
-  its PDF output.
+- **Style-preserving import** — *File → "Import PDF (keep formatting)…"* OCRs a PDF and brings it
+  into the editable document with **headings, bold/italic, and tables preserved** (imported
+  headings feed the document outline; tables come in as real `<table>`s), instead of flattening to
+  plain text. It's built from scribe's Markdown rendering (`markdownToHtml` in `studio/chrome.ts`),
+  which is the clean semantic source — scribe's own HTML export is an absolute-positioned visual
+  page reproduction, unusable for a contenteditable.
+- **Low-confidence flagging** — after an import, the words scribe was least sure about (its genuine
+  OCR garbles, e.g. a misread case name) are **highlighted in red** for you to verify against the
+  original. Only *distinctive* low-confidence tokens are flagged (an alphanumeric core of ≥ 5, or
+  containing a digit), so common short words that merely scored low once don't drown the document
+  in false marks.
+- **PDF → Word (.docx)** — *File → "Convert a PDF to Word (.docx)…"* OCRs a scanned PDF and
+  downloads it as an editable Word document (scribe's `.docx` export, with recognized layout and
+  font styles).
 - **Searchable-PDF output** — *File → "Save a PDF as searchable…"* takes a scanned PDF, OCRs it,
   and downloads a copy with an **invisible, selectable OCR text layer** over the original page
   images (styles preserved).
+- **Font-style detection** underlies several of the above — scribe reports bold/italic/font/size
+  per word, preserved through the styled import, the Word export, and the searchable PDF.
 
 **Why scribe.js is on Studio only** (and the PDF & OCR Tools page and plain Document Editor keep
 tesseract.js): scribe is a heavier, higher-accuracy engine (~60 MB of self-hosted assets), and it
@@ -168,9 +182,10 @@ extraction through a `window.__openclerkExtractPdfText` seam (falling back to th
 `editor-pdf-bundle.js` if it's unset); `studio/chrome.ts` pre-sets that seam to a lazy
 scribe-backed wrapper, so the shared "Load from file" path uses scribe **on Studio** while
 `editor.html` (the Document Editor) still uses tesseract — no change to the shared bundle. As with
-`isSafeHyperlinkUrl` above, `chrome.ts` hand-rolls the small download helper rather than importing
-`editor/exportDocument.ts`'s (which would drag JSZip into `studio-bundle.js`), keeping that bundle
-at ~15 KB.
+`isSafeHyperlinkUrl` above, `chrome.ts` hand-rolls the small download helper and the Markdown→HTML
+renderer rather than importing `editor/exportDocument.ts`'s (which would drag JSZip into
+`studio-bundle.js`), keeping that bundle small (~23 KB — all the heavy OCR logic stays in the
+self-hosted, un-bundled scribe assets).
 
 **Why keep the plain Document Editor at all, instead of just replacing it:** Studio's three/four-
 pane layout (216px outline + flexible document + 344px slide-over) needs real width to work.
