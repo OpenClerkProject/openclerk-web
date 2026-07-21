@@ -97,8 +97,13 @@ Studio adds, on top of everything the Document Editor already does:
   menu) looks a *case citation* up against a real provider before linking it; Insert > Hyperlink
   is the plain "link this text to a URL" command every word processor's Insert menu has, for
   everything else a legal document might reference (an exhibit, a docket entry, an external
-  page). Edit and View remain plain labels — there's no corresponding feature in this app yet for
-  either, and a dropdown with nothing real behind it would be worse than an honest static label.
+  page).
+- **A working Edit menu** — Undo / Redo (forwarding to the same formatting-toolbar buttons, so
+  `formatting.ts`'s execCommand handling stays the single source of truth) and Select all (via the
+  Selection API on the document surface).
+- **A working View menu** — toggles that show/hide the document outline sidebar and the comment
+  gutter (each a `menuitemcheckbox` whose checkmark tracks the current state), giving the document
+  more room when you don't need those panels.
 - **Left/justify paragraph alignment**, added to `src/editor/formatting.ts` (and so available on
   the plain Document Editor too — see its toolbar).
 - **A status bar**: live word count, the selected Bluebook edition, and the same citation-health
@@ -132,6 +137,41 @@ citation provider) and ballooned `studio-bundle.js` from ~13KB to ~475KB. A smal
 duplicate of that one check (same allowed-schemes allowlist, kept in sync by comment) costs far
 less than an import that isn't actually small.
 
+### Higher-accuracy OCR + searchable-PDF output (scribe.js) — Studio only
+
+Studio uses **[scribe.js](https://github.com/scribeocr/scribe.js)** as its OCR engine, giving it
+three things the tesseract.js-based PDF & OCR Tools page can't do:
+
+- **Better OCR accuracy** when you load a scanned PDF via *File → Load from file* — scribe's
+  custom model recovers more text than Tesseract's default engine.
+- **Font-style detection** — scribe reports bold/italic/font/size per word, and preserves them in
+  its PDF output.
+- **Searchable-PDF output** — *File → "Save a PDF as searchable…"* takes a scanned PDF, OCRs it,
+  and downloads a copy with an **invisible, selectable OCR text layer** over the original page
+  images (styles preserved).
+
+**Why scribe.js is on Studio only** (and the PDF & OCR Tools page and plain Document Editor keep
+tesseract.js): scribe is a heavier, higher-accuracy engine (~60 MB of self-hosted assets), and it
+**can't be bundled by esbuild** (its module graph statically references a native `.node` addon and
+Node builtins that fail the browser build) and **can't be loaded from a CDN** (it requires all its
+files be served same-origin). So it's vendored into `dist/scribe/` by `scripts/build.js` (build-
+copied, never committed — like the pdf worker) and loaded as **native ESM** by a hand-authored,
+un-bundled `src/studio/scribe-loader.mjs`. Its Tesseract language data is self-hosted too
+(`dist/scribe-lang/`, from the `@tesseract.js-data/eng` devDependency) rather than fetched from
+scribe's default jsdelivr CDN — so OCR here fetches nothing from a third party, unlike the PDF &
+OCR Tools page. Studio is the natural home for this weight: it's already the desktop-only "more
+features" page, and the assets **load lazily** (only when a PDF operation actually runs) and are
+cached, so Studio sessions that never touch a PDF pay nothing.
+
+The integration keeps `editor-bundle.js` unmodified. `editor/main.ts` already resolves PDF
+extraction through a `window.__openclerkExtractPdfText` seam (falling back to the tesseract
+`editor-pdf-bundle.js` if it's unset); `studio/chrome.ts` pre-sets that seam to a lazy
+scribe-backed wrapper, so the shared "Load from file" path uses scribe **on Studio** while
+`editor.html` (the Document Editor) still uses tesseract — no change to the shared bundle. As with
+`isSafeHyperlinkUrl` above, `chrome.ts` hand-rolls the small download helper rather than importing
+`editor/exportDocument.ts`'s (which would drag JSZip into `studio-bundle.js`), keeping that bundle
+at ~15 KB.
+
 **Why keep the plain Document Editor at all, instead of just replacing it:** Studio's three/four-
 pane layout (216px outline + flexible document + 344px slide-over) needs real width to work.
 Below 860px it doesn't try to cram itself into a phone- or narrow-tablet-sized viewport — it
@@ -157,6 +197,11 @@ A separate page (own HTML file, own bundle) for uploading a PDF: it extracts tex
 (a scanned/image-only page), then runs `openclerk-core`'s citation engine over the result --
 full, short-form, `Id.`, and `supra` citations, clustered by case -- and optionally checks each
 one against CourtListener to flag citations that don't resolve as possible hallucinations.
+
+This page deliberately keeps the **lightweight, portable tesseract.js** engine. If you want
+higher-accuracy OCR, font-style detection, or a searchable-PDF export, OpenClerk Studio uses the
+heavier scribe.js engine for exactly that (see its section above) — the two are kept separate on
+purpose so this page stays small and fast.
 
 **Why a separate page, not a feature of the Citation Checker:** pdf.js and tesseract.js together
 are several MB, and only someone who actually has a PDF needs them. Splitting this into its own
@@ -225,10 +270,12 @@ and how this file has been verified so far.
   `URLSearchParams` natively, which is all `openclerk-core` needs.
 - `scripts/build.js` uses esbuild to bundle each page's entry point independently (so, e.g., a
   Citation Checker visitor never downloads the Document Editor's or PDF & OCR Tools' code), and
-  copies each page's HTML, the shared `src/theme.css` stylesheet, plus pdf.js's worker script and
-  the Examples page's downloadable example PDF alongside the bundles. That `dist/` folder is the
-  entire deployable artifact — open `dist/index.html` directly in a browser, or serve the whole
-  folder, no server-side logic required.
+  copies each page's HTML, the shared `src/theme.css` stylesheet, plus pdf.js's worker script,
+  the Examples page's downloadable example PDF, and OpenClerk Studio's self-hosted scribe.js OCR
+  engine + language data (`dist/scribe/`, `dist/scribe-lang/`, `dist/scribe-loader.mjs` — see the
+  Studio section) alongside the bundles. That `dist/` folder is the entire deployable artifact —
+  open `dist/index.html` directly in a browser, or serve the whole folder, no server-side logic
+  required.
 - One bundle, `editor-pdf-bundle.js`, is built but not linked from any HTML `<script>` tag --
   `editor/main.ts` injects it at runtime only when a `.pdf` is actually selected in the Document
   Editor. Plain IIFE bundles (this project's build format throughout) can't code-split a dynamic

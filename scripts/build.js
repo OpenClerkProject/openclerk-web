@@ -43,7 +43,27 @@ const LAZY_BUNDLES = [{ entry: "src/editor/pdfBridge.ts", outfile: "editor-pdf-b
 const STATIC_ASSETS = [
   { from: "node_modules/pdfjs-dist/build/pdf.worker.min.mjs", to: "pdf.worker.min.mjs" },
   { from: "tests/fixtures/mata-v-avianca-filing.pdf", to: "mata-v-avianca-filing.pdf" },
+  // OpenClerk Studio's scribe.js glue -- hand-authored native ESM, copied verbatim (never
+  // bundled: scribe can't go through esbuild; see src/studio/scribe-loader.mjs's header).
+  { from: "src/studio/scribe-loader.mjs", to: "scribe-loader.mjs" },
 ];
+
+// scribe.js-ocr powers OCR / searchable-PDF / font-style detection on the OpenClerk Studio page
+// ONLY (the PDF & OCR Tools page and the plain Document Editor keep tesseract.js). scribe cannot
+// be bundled by esbuild and forbids CDN loading, so its browser subtree is self-hosted under
+// dist/scribe/ and loaded as native ESM by scribe-loader.mjs. Only the browser-relevant entries
+// are vendored (its docs/examples/cli/mcp/UI dirs are skipped). These are build-copied into dist/,
+// never committed -- same as the pdf worker above. Heavy (~60 MB) but isolated to Studio, and
+// loaded lazily (only when a PDF operation is actually run there) and cached by the browser.
+const SCRIBE_SRC = path.join(ROOT, "node_modules/scribe.js-ocr");
+const SCRIBE_OUT = path.join(OUT_DIR, "scribe");
+const SCRIBE_VENDOR_ENTRIES = ["scribe.js", "js", "lib", "tess", "fonts"];
+// Tesseract language data, self-hosted same-origin rather than fetched from scribe's default
+// jsdelivr CDN -- keeps OCR fully within the browser (nothing fetched from a third party), and is
+// what scribe-loader.mjs points opt.langPath at. Sourced from the @tesseract.js-data/eng package
+// (a devDependency), the exact same data scribe's CDN default would otherwise serve.
+const SCRIBE_LANG_FROM = path.join(ROOT, "node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz");
+const SCRIBE_LANG_OUT = path.join(OUT_DIR, "scribe-lang", "eng.traineddata.gz");
 
 // Read directly from the installed package rather than this project's own package.json, so the
 // UI reflects whatever openclerk-core build actually got bundled (its git ref is a tag, not an
@@ -80,6 +100,24 @@ async function build() {
   STATIC_ASSETS.forEach(({ from, to }) => {
     fs.copyFileSync(path.join(ROOT, from), path.join(OUT_DIR, to));
   });
+
+  vendorScribe();
+}
+
+// Copies scribe's self-hosted browser subtree + language data into dist/. Skipped when already
+// present (the ~60 MB copy is the slowest part of a build, and node_modules doesn't change between
+// rebuilds) unless OPENCLERK_REVENDOR_SCRIBE is set to force a refresh.
+function vendorScribe() {
+  const alreadyVendored = fs.existsSync(path.join(SCRIBE_OUT, "scribe.js")) && fs.existsSync(SCRIBE_LANG_OUT);
+  if (alreadyVendored && !process.env.OPENCLERK_REVENDOR_SCRIBE) {
+    return;
+  }
+  fs.mkdirSync(SCRIBE_OUT, { recursive: true });
+  SCRIBE_VENDOR_ENTRIES.forEach((entry) => {
+    fs.cpSync(path.join(SCRIBE_SRC, entry), path.join(SCRIBE_OUT, entry), { recursive: true });
+  });
+  fs.mkdirSync(path.dirname(SCRIBE_LANG_OUT), { recursive: true });
+  fs.copyFileSync(SCRIBE_LANG_FROM, SCRIBE_LANG_OUT);
 }
 
 build().catch((error) => {

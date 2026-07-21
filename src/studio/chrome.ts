@@ -399,15 +399,163 @@ function insertHyperlink(): void {
   setStudioStatus("Hyperlink added.");
 }
 
+// ---- Scribe.js: Studio-only OCR + searchable-PDF export ----
+// scribe.js is a higher-accuracy OCR engine than the tesseract.js the PDF & OCR Tools page and
+// the plain Document Editor use. It also reports font styles and can emit a searchable PDF (an
+// invisible OCR text layer over the original scan). It's used ONLY here in Studio, because it's
+// heavy (~60 MB of self-hosted assets), can't be bundled by esbuild, and can't be CDN-loaded --
+// see src/studio/scribe-loader.mjs. It loads lazily: the native-ESM loader is only injected the
+// first time a PDF operation actually runs, so Studio sessions that never touch a PDF pay nothing.
+//
+// editor/main.ts already declares `window.__openclerkExtractPdfText` (its lazy PDF-import seam);
+// setting it here to a scribe-backed wrapper is what makes the shared editor-bundle.js use scribe
+// on this page, with no change to that bundle. Only `__openclerkScribe` (the loader's own export)
+// is new to declare.
+type StudioPdfPage = { pageNumber: number; text: string; source: "embedded" | "ocr" | "empty" };
+interface ScribeApi {
+  extractPdfText: (file: File, options?: { onProgress?: (message: string) => void }) => Promise<StudioPdfPage[]>;
+  exportSearchablePdf: (file: File, options?: { onProgress?: (message: string) => void }) => Promise<ArrayBuffer>;
+}
+declare global {
+  interface Window {
+    __openclerkScribe?: ScribeApi;
+  }
+}
+
+let scribeLoadPromise: Promise<ScribeApi> | null = null;
+
+/** Injects the native-ESM scribe loader once and resolves with its window-exposed API. */
+function ensureScribe(): Promise<ScribeApi> {
+  if (window.__openclerkScribe) {
+    return Promise.resolve(window.__openclerkScribe);
+  }
+  if (!scribeLoadPromise) {
+    scribeLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = "scribe-loader.mjs";
+      // The loader sets window.__openclerkScribe as its final statement; a module script's load
+      // event fires after evaluation, so the global is present by the time this runs.
+      script.onload = () => {
+        if (window.__openclerkScribe) {
+          resolve(window.__openclerkScribe);
+        } else {
+          reject(new Error("Could not initialize PDF/OCR support."));
+        }
+      };
+      script.onerror = () => reject(new Error("Could not load PDF/OCR support."));
+      document.head.appendChild(script);
+    });
+  }
+  return scribeLoadPromise;
+}
+
+// Standard browser download plumbing. Duplicated (not imported from editor/exportDocument.ts) so
+// this bundle doesn't drag in that module's JSZip dependency -- same bundle-size reasoning as
+// isSafeHyperlinkUrl above.
+function downloadBlob(data: ArrayBuffer, filename: string, mimeType: string): void {
+  const blob = new Blob([data], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function handleSearchablePdfExport(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) {
+    return;
+  }
+  try {
+    setStudioStatus(`Preparing a searchable PDF from "${file.name}" (OCR can take a while)...`);
+    const scribe = await ensureScribe();
+    const buffer = await scribe.exportSearchablePdf(file, { onProgress: setStudioStatus });
+    const base = file.name.replace(/\.pdf$/i, "");
+    downloadBlob(buffer, `${base}-searchable.pdf`, "application/pdf");
+    setStudioStatus(`Downloaded "${base}-searchable.pdf".`);
+  } catch (error) {
+    setStudioStatus(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// ---- Edit menu ----
+// Undo/Redo forward to the existing formatting-toolbar buttons rather than calling execCommand
+// directly, so the (jsdom-guarded) execCommand handling in formatting.ts stays the single source
+// of truth. Select all uses the Selection API on the document surface.
+
+function selectAllDocument(): void {
+  const doc = $("document-surface");
+  if (!doc) {
+    return;
+  }
+  doc.focus();
+  const range = document.createRange();
+  range.selectNodeContents(doc);
+  const selection = document.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function wireEditMenu(): void {
+  $("stu-edit-undo")?.addEventListener("click", () => $("format-undo-button")?.click());
+  $("stu-edit-redo")?.addEventListener("click", () => $("format-redo-button")?.click());
+  $("stu-edit-select-all")?.addEventListener("click", selectAllDocument);
+}
+
+// ---- View menu ----
+// Toggles the visibility of the outline sidebar and the comment gutter, giving the document more
+// room. Each item is a menuitemcheckbox: its aria-checked and leading checkmark reflect whether
+// the panel is currently shown.
+
+function toggleView(panelId: string, buttonId: string): void {
+  const panel = $(panelId);
+  const button = $(buttonId);
+  if (!panel) {
+    return;
+  }
+  const nowHidden = panel.classList.toggle("stu-hidden");
+  button?.setAttribute("aria-checked", String(!nowHidden));
+  const check = button?.querySelector<HTMLElement>("[data-check]");
+  if (check) {
+    // U+2713 check mark when shown, nothing when hidden (kept in a fixed-width icon slot so the
+    // label doesn't shift).
+    check.textContent = nowHidden ? "" : "✓";
+  }
+}
+
+function wireViewMenu(): void {
+  $("stu-view-toggle-outline")?.addEventListener("click", () => toggleView("stu-outline", "stu-view-toggle-outline"));
+  $("stu-view-toggle-gutter")?.addEventListener("click", () => toggleView("stu-gutter", "stu-view-toggle-gutter"));
+}
+
 // ---- Wiring ----
 
 function init(): void {
+  wireDropdown("stu-edit-menu-trigger", "stu-edit-menu");
+  wireDropdown("stu-view-menu-trigger", "stu-view-menu");
   wireDropdown("stu-file-menu-trigger", "stu-file-menu");
   wireDropdown("stu-cite-menu-trigger", "stu-cite-menu");
   wireDropdown("stu-insert-menu-trigger", "stu-insert-menu");
   document.addEventListener("click", closeAllDropdowns);
   wireCitationsMenu();
+  wireEditMenu();
+  wireViewMenu();
   $("stu-insert-hyperlink")?.addEventListener("click", insertHyperlink);
+
+  // Route Studio's PDF import through scribe (better OCR + font styles) by pre-setting the seam
+  // editor-bundle.js already consumes. The wrapper is set immediately but loads scribe lazily, so
+  // loading a .pdf via "Load from file" here uses scribe instead of the tesseract editor-pdf-bundle.
+  window.__openclerkExtractPdfText = (file, options) =>
+    ensureScribe().then((scribe) => scribe.extractPdfText(file, { onProgress: options?.onProgress }));
+  $("stu-save-searchable-pdf")?.addEventListener("click", () => $("stu-searchable-pdf-input")?.click());
+  $("stu-searchable-pdf-input")?.addEventListener("change", handleSearchablePdfExport);
+
   openWorkflow("manage-hyperlinks");
   closeWorkflow();
 
@@ -446,4 +594,16 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, openWorkflow, closeWorkflow, refreshOutline, refreshWordCount, refreshHealthAndGutter, insertHyperlink };
+export {
+  init,
+  openWorkflow,
+  closeWorkflow,
+  refreshOutline,
+  refreshWordCount,
+  refreshHealthAndGutter,
+  insertHyperlink,
+  ensureScribe,
+  handleSearchablePdfExport,
+  selectAllDocument,
+  toggleView,
+};

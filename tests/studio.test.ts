@@ -8,11 +8,28 @@ function setUpDom(): void {
     <div id="stu-doc-title"></div>
 
     <span class="stu-menu-wrap">
+      <button type="button" id="stu-edit-menu-trigger"></button>
+      <div class="stu-dropdown" id="stu-edit-menu">
+        <button type="button" id="stu-edit-undo"></button>
+        <button type="button" id="stu-edit-redo"></button>
+        <button type="button" id="stu-edit-select-all"></button>
+      </div>
+    </span>
+    <span class="stu-menu-wrap">
+      <button type="button" id="stu-view-menu-trigger"></button>
+      <div class="stu-dropdown" id="stu-view-menu">
+        <button type="button" id="stu-view-toggle-outline" aria-checked="true"><span data-check>&#10003;</span></button>
+        <button type="button" id="stu-view-toggle-gutter" aria-checked="true"><span data-check>&#10003;</span></button>
+      </div>
+    </span>
+    <span class="stu-menu-wrap">
       <button type="button" id="stu-file-menu-trigger"></button>
       <div class="stu-dropdown" id="stu-file-menu">
         <label for="load-file-input">Load</label>
         <button type="button" id="download-txt-button"></button>
         <button type="button" id="download-odt-button"></button>
+        <button type="button" id="stu-save-searchable-pdf"></button>
+        <input type="file" id="stu-searchable-pdf-input" />
       </div>
     </span>
     <span class="stu-menu-wrap">
@@ -52,7 +69,9 @@ function setUpDom(): void {
       <button type="button" id="format-redo-button"></button>
     </div>
 
-    <nav id="stu-outline-list"></nav>
+    <div id="stu-outline">
+      <nav id="stu-outline-list"></nav>
+    </div>
     <div id="stu-health-summary"></div>
     <span id="stu-wordcount"></span>
     <span id="stu-edition-label"></span>
@@ -135,6 +154,10 @@ describe("OpenClerk Studio chrome", () => {
   beforeEach(() => {
     jest.resetModules();
     setUpDom();
+    // These window globals persist across tests (jest.resetModules() only resets modules, not the
+    // shared window) -- clear the scribe seam so each test starts clean.
+    delete (window as unknown as { __openclerkScribe?: unknown }).__openclerkScribe;
+    delete (window as unknown as { __openclerkExtractPdfText?: unknown }).__openclerkExtractPdfText;
   });
 
   it("loads editor/main.ts and studio/chrome.ts together without throwing", () => {
@@ -325,5 +348,158 @@ describe("OpenClerk Studio chrome", () => {
 
     document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(menu.classList.contains("open")).toBe(false);
+  });
+
+  // scribe.js itself can't run in jsdom (WASM/workers/canvas), and its loader is injected as a
+  // native-ES-module <script> that jsdom won't execute -- so these tests pre-seed
+  // window.__openclerkScribe (what the loader would expose) and verify chrome.ts's wiring around
+  // it: that Studio routes PDF import through scribe, and that the searchable-PDF export flow is
+  // hooked up. The real engine is exercised in a browser (see the Playwright fixture gate).
+  describe("scribe (OCR / searchable PDF)", () => {
+    type ScribeMock = {
+      extractPdfText: jest.Mock;
+      exportSearchablePdf: jest.Mock;
+    };
+
+    function seedScribe(overrides: Partial<ScribeMock> = {}): ScribeMock {
+      const scribe: ScribeMock = {
+        extractPdfText: jest.fn().mockResolvedValue([{ pageNumber: 1, text: "recovered ocr text", source: "ocr" }]),
+        exportSearchablePdf: jest.fn().mockResolvedValue(new ArrayBuffer(64)),
+        ...overrides,
+      };
+      // Pre-seeding the global is what the injected loader would do; chrome.ts's ensureScribe()
+      // then resolves to it immediately without injecting any <script>.
+      (window as unknown as { __openclerkScribe?: ScribeMock }).__openclerkScribe = scribe;
+      return scribe;
+    }
+
+    it("routes PDF import through scribe by pre-setting the __openclerkExtractPdfText seam", async () => {
+      const scribe = seedScribe();
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+
+      const extractor = (window as unknown as { __openclerkExtractPdfText?: Function }).__openclerkExtractPdfText;
+      expect(typeof extractor).toBe("function");
+
+      const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
+      const onProgress = jest.fn();
+      const pages = await extractor!(file, { onProgress });
+
+      expect(scribe.extractPdfText).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress }));
+      expect(pages[0].text).toBe("recovered ocr text");
+      expect(pages[0].source).toBe("ocr");
+    });
+
+    it("clicking the File-menu item opens the searchable-PDF file picker", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+
+      const input = document.getElementById("stu-searchable-pdf-input") as HTMLInputElement;
+      const clickSpy = jest.spyOn(input, "click").mockImplementation(() => {});
+      document.getElementById("stu-save-searchable-pdf")!.click();
+      expect(clickSpy).toHaveBeenCalled();
+    });
+
+    it("exports a searchable PDF and triggers a download when a file is picked", async () => {
+      const scribe = seedScribe();
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      // jsdom implements neither URL.createObjectURL nor anchor-triggered downloads.
+      const createObjectURL = jest.fn().mockReturnValue("blob:mock");
+      const revokeObjectURL = jest.fn();
+      (URL as unknown as { createObjectURL: unknown }).createObjectURL = createObjectURL;
+      (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeObjectURL;
+      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+      const input = document.getElementById("stu-searchable-pdf-input") as HTMLInputElement;
+      const file = new File(["%PDF-1.4"], "brief.pdf", { type: "application/pdf" });
+      Object.defineProperty(input, "files", { value: [file], configurable: true });
+
+      await chrome.handleSearchablePdfExport({ target: input } as unknown as Event);
+
+      expect(scribe.exportSearchablePdf).toHaveBeenCalledWith(file, expect.objectContaining({ onProgress: expect.any(Function) }));
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(anchorClick).toHaveBeenCalled();
+      expect(document.getElementById("status")!.textContent).toContain("brief-searchable.pdf");
+    });
+
+    it("surfaces an error status if the searchable-PDF export fails", async () => {
+      seedScribe({ exportSearchablePdf: jest.fn().mockRejectedValue(new Error("OCR blew up")) });
+      const chrome = require("../src/studio/chrome");
+      require("../src/editor/main");
+
+      const input = document.getElementById("stu-searchable-pdf-input") as HTMLInputElement;
+      Object.defineProperty(input, "files", {
+        value: [new File(["x"], "brief.pdf", { type: "application/pdf" })],
+        configurable: true,
+      });
+
+      await chrome.handleSearchablePdfExport({ target: input } as unknown as Event);
+      expect(document.getElementById("status")!.textContent).toContain("OCR blew up");
+    });
+  });
+
+  describe("Edit menu", () => {
+    it("Undo / Redo forward to the formatting-toolbar buttons", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+
+      const undoSpy = jest.spyOn(document.getElementById("format-undo-button") as HTMLElement, "click");
+      const redoSpy = jest.spyOn(document.getElementById("format-redo-button") as HTMLElement, "click");
+
+      document.getElementById("stu-edit-undo")!.click();
+      document.getElementById("stu-edit-redo")!.click();
+
+      expect(undoSpy).toHaveBeenCalledTimes(1);
+      expect(redoSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("Select all selects the whole document surface", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      documentSurface().innerHTML = "<p>First line.</p><p>Second line.</p>";
+
+      document.getElementById("stu-edit-select-all")!.click();
+
+      const selection = document.getSelection()!;
+      expect(selection.rangeCount).toBe(1);
+      expect(selection.toString()).toContain("First line.");
+      expect(selection.toString()).toContain("Second line.");
+    });
+  });
+
+  describe("View menu", () => {
+    it("toggles the document outline's visibility and its checkmark", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      const outline = document.getElementById("stu-outline")!;
+      const button = document.getElementById("stu-view-toggle-outline")!;
+      const check = button.querySelector("[data-check]")!;
+
+      expect(outline.classList.contains("stu-hidden")).toBe(false);
+
+      button.click();
+      expect(outline.classList.contains("stu-hidden")).toBe(true);
+      expect(button.getAttribute("aria-checked")).toBe("false");
+      expect(check.textContent).toBe("");
+
+      button.click();
+      expect(outline.classList.contains("stu-hidden")).toBe(false);
+      expect(button.getAttribute("aria-checked")).toBe("true");
+      expect(check.textContent).toBe("✓");
+    });
+
+    it("toggles the comment gutter's visibility", () => {
+      require("../src/editor/main");
+      require("../src/studio/chrome");
+      const gutter = document.getElementById("stu-gutter")!;
+      const button = document.getElementById("stu-view-toggle-gutter")!;
+
+      button.click();
+      expect(gutter.classList.contains("stu-hidden")).toBe(true);
+      button.click();
+      expect(gutter.classList.contains("stu-hidden")).toBe(false);
+    });
   });
 });
