@@ -182,7 +182,12 @@ un-bundled `src/studio/scribe-loader.mjs`. Its Tesseract language data is self-h
 scribe's default jsdelivr CDN — so OCR here fetches nothing from a third party, unlike the PDF &
 OCR Tools page. Studio is the natural home for this weight: it's already the desktop-only "more
 features" page, and the assets **load lazily** (only when a PDF operation actually runs) and are
-cached, so Studio sessions that never touch a PDF pay nothing.
+cached, so Studio sessions that never touch a PDF pay nothing. Once a PDF operation does start, the
+loader kicks off `scribe.init({ ocr: true })` in the background so the Tesseract OCR worker warms up
+*concurrently* with parsing the PDF, rather than serially on the first `recognize()` — trimming the
+first-import wait. (Cloud OCR adapters, which scribe also ships, are deliberately **not** used: they
+send page images to a third-party service, which would break OpenClerk's "nothing leaves your
+browser" model.)
 
 The integration keeps `editor-bundle.js` unmodified. `editor/main.ts` already resolves PDF
 extraction through a `window.__openclerkExtractPdfText` seam (falling back to the tesseract

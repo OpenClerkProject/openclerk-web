@@ -29,6 +29,15 @@ scribe.opt.langPath = new URL("./scribe-lang/", import.meta.url).href;
  * yields "embedded", an image/scanned one "ocr", an empty page "empty".
  */
 async function runRecognition(file, onProgress) {
+  // Warm the Tesseract OCR worker in the background so it loads *concurrently* with openDocument's
+  // PDF parse and font load, instead of serially on the first recognize() call. scribe.openDocument
+  // already pre-warms the general worker pool and built-in fonts, but not the OCR worker -- which is
+  // the slow part for a scanned page -- so this overlaps that load and trims the first-import wait.
+  // Fire-and-forget best-effort: recognize() awaits the very same singleton, so a rejection here
+  // must never surface. `{ ocr: true }` deliberately does NOT preload the ~21 MB fonts (init only
+  // loads those with `{ font: true }`), keeping import/extract lightweight. Inspired by scribe's
+  // recognize-basic example, which front-loads work the same way via scribe.init.
+  scribe.init({ ocr: true }).catch(() => {});
   scribe.opt.progressHandler = (msg) => {
     if (msg && msg.type === "recognize" && typeof msg.n === "number" && onProgress) {
       onProgress(`Running OCR on page ${msg.n + 1}...`);
