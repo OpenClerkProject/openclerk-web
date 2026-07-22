@@ -471,6 +471,84 @@ describe("openclerk-web editor", () => {
     );
   });
 
+  // A leading C0 control char (0x01) and a tab -- built from char codes so no literal control
+  // character sits in the test source. A reader-side scheme parser strips these before "javascript"
+  // and would otherwise see an executable scheme.
+  const SOH = String.fromCharCode(1);
+  const TAB = String.fromCharCode(9);
+
+  it.each([
+    ["a safe https URL", "https://example.com/opinion"],
+    ["a safe mailto URL", "mailto:clerk@example.com"],
+    // A provider case-law link is a site-relative path (no scheme) -- it must stay a live link.
+    ["a safe relative provider path", "/opinion/12345/norfolk/"],
+  ])("keeps %s wrapped as <text:a xlink:href> in the .odt archive", async (_label, href) => {
+    require("../src/editor/main");
+    const { buildOdtArchive } = require("../src/editor/exportDocument");
+    const { MANUAL_HYPERLINK_CLASS } = require("../src/editor/markers");
+
+    const anchor = document.createElement("a");
+    anchor.className = MANUAL_HYPERLINK_CLASS;
+    anchor.setAttribute("href", href);
+    anchor.textContent = "Opinion";
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(anchor);
+    documentSurface().innerHTML = "";
+    documentSurface().appendChild(paragraph);
+
+    const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
+    const contentXml = await (await JSZip.loadAsync(archive)).file("content.xml")!.async("string");
+
+    expect(contentXml).toContain(`<text:a xlink:type="simple" xlink:href="${href}">Opinion`);
+  });
+
+  // Defense in depth for the export sink: even if a hyperlink with an unsafe scheme somehow reached
+  // the document surface, buildOdtArchive must not serialize it into a live <text:a xlink:href> --
+  // it flattens it to plain text (the link's words survive, the resolvable href does not). See
+  // isSafeExportHref in exportDocument.ts for why each of these is unsafe.
+  const UNSAFE_HREFS: Array<[string, string]> = [
+    ["javascript:", "javascript:alert(document.cookie)"],
+    ["data:", "data:text/html,<script>alert(1)</script>"],
+    ["file:", "file:///etc/passwd"],
+    ["vbscript:", "vbscript:msgbox(1)"],
+    ["a UNC path", "\\\\attacker-host\\share\\payload"],
+    ["a leading-control-char scheme", `${SOH}javascript:alert(1)`],
+    ["a leading-tab scheme", `${TAB}javascript:alert(1)`],
+    ["a mixed-case scheme", "JaVaScRiPt:alert(1)"],
+    ["a percent-encoded pseudo-scheme", "Java%53cript:alert(1)"],
+  ];
+
+  it.each(UNSAFE_HREFS)(
+    "flattens an unsafe hyperlink (%s) to plain text in the .odt archive, with no xlink:href",
+    async (_label, href) => {
+      require("../src/editor/main");
+      const { buildOdtArchive } = require("../src/editor/exportDocument");
+      const { MANUAL_HYPERLINK_CLASS } = require("../src/editor/markers");
+
+      const anchor = document.createElement("a");
+      anchor.className = MANUAL_HYPERLINK_CLASS;
+      // setAttribute (not .href): assigning to the .href property would let the DOM normalize/
+      // resolve the value, which could mask exactly the raw unsafe string we want to serialize.
+      anchor.setAttribute("href", href);
+      anchor.textContent = "Exhibit A";
+      const paragraph = document.createElement("p");
+      paragraph.appendChild(document.createTextNode("See "));
+      paragraph.appendChild(anchor);
+      documentSurface().innerHTML = "";
+      documentSurface().appendChild(paragraph);
+
+      const archive: ArrayBuffer = await buildOdtArchive(documentSurface());
+      const contentXml = await (await JSZip.loadAsync(archive))
+        .file("content.xml")!
+        .async("string");
+
+      expect(contentXml).not.toContain("<text:a");
+      expect(contentXml).not.toContain("xlink:href");
+      // The visible words survive as plain text, just without the resolvable wrapper.
+      expect(contentXml).toContain("Exhibit A");
+    },
+  );
+
   it("wires up the formatting toolbar without throwing, even though execCommand isn't available in jsdom", () => {
     require("../src/editor/main");
 
