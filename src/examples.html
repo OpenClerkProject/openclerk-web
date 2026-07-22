@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <!-- This is a static, server-less GitHub Pages site, so the CSP is delivered as a meta tag (there
+       are no response headers to set). The Examples page is static content -- no network, no
+       workers, no WASM -- so it stays 'self'-only with no script 'unsafe-inline' (every script is an
+       external same-origin file). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClerk — Examples &amp; How to Use</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%2316305c'/%3E%3Ctext x='12' y='17' font-size='14' font-family='Georgia, serif' fill='white' text-anchor='middle'%3E%C2%A7%3C/text%3E%3C/svg%3E" />

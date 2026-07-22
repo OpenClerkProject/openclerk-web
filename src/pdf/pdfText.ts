@@ -41,17 +41,23 @@ async function createOcrWorker(onProgress?: (message: string) => void): Promise<
   // language-model fetches tesseract.js makes only happen once OCR genuinely runs, not on every
   // page load -- this page's esbuild config bundles tesseract.js's own JS into pdf-bundle.js
   // either way (no code-splitting for a plain IIFE bundle), but constructing a worker is what
-  // actually triggers its network fetches, and a document with an embedded text layer on every
-  // page should never trigger them at all.
+  // actually triggers its asset fetches, and a document with an embedded text layer on every page
+  // should never trigger them at all.
   //
-  // Deliberately left on tesseract.js's default CDN-hosted worker/core/language-model files
-  // rather than vendoring them: the binary WASM core and per-language trained-data files are
-  // several MB each, and unlike the rest of this project's "nothing ever leaves the browser"
-  // pages, this specific page already has to fetch something to do OCR at all. The PDF's own
-  // content is still never uploaded anywhere -- only a generic, page-content-independent language
-  // model is fetched, once, and cached by the browser after that.
+  // workerPath/corePath/langPath are pinned to self-hosted, same-origin copies (see
+  // scripts/build.js's vendorTesseract) rather than tesseract.js's default jsdelivr CDN, so OCR
+  // stays fully within the browser -- nothing (not the PDF, not even a generic language model) is
+  // fetched from a third party -- consistent with the rest of this project's "nothing leaves your
+  // browser" model, and letting this page's Content-Security-Policy stay 'self'-only. Paths are
+  // bare relative strings (like pdf.worker.min.mjs above); tesseract.js resolves them against the
+  // page URL, so they're correct regardless of the deploy subpath. corePath is the directory of
+  // WASM core variants (tesseract.js picks the SIMD/non-SIMD build); langPath is the directory
+  // holding eng.traineddata.gz.
   const { createWorker } = await import("tesseract.js");
   return createWorker("eng", 1, {
+    workerPath: "tesseract-worker.min.js",
+    corePath: "tesseract-core/",
+    langPath: "tesseract-lang",
     logger: (message) => {
       if (message.status === "recognizing text") {
         onProgress?.(`Running OCR... ${Math.round(message.progress * 100)}%`);
