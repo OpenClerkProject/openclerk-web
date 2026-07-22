@@ -241,13 +241,13 @@ OCR via tesseract.js recovers scanned text just fine in practice, verified again
 publicly filed scanned document (see below), and "heavy" is solved by not shipping that weight to
 every page, not by leaving the feature out.
 
-**What never leaves the browser, and what does:** the PDF itself is parsed entirely client-side
-and never uploaded anywhere. If OCR is needed for a page (no embedded text layer), tesseract.js
-fetches its worker script, WASM core, and English language-model file from its default CDN host
-the first time OCR runs in your browser -- that's a generic, page-content-independent file, not
-anything from your document, and it's cached by the browser afterward. Checking citations against
-CourtListener (opt-in, via the page's checkbox) sends only the matched citation strings, same as
-the Citation Checker and Document Editor pages' own lookups -- never the document text.
+**What never leaves the browser:** the PDF itself is parsed entirely client-side and never
+uploaded anywhere. OCR (needed only for a page with no embedded text layer) is fully self-hosted
+too -- tesseract.js's worker script, WASM core, and English language-model file are all served from
+this same site (vendored into `dist/` at build time; see `scripts/build.js`), so nothing is fetched
+from a third party. Checking citations against CourtListener (opt-in, via the page's checkbox)
+sends only the matched citation strings, same as the Citation Checker and Document Editor pages' own
+lookups -- never the document text.
 
 **Tested against a real scanned filing:** [tests/fixtures/mata-v-avianca-filing.pdf](tests/fixtures/mata-v-avianca-filing.pdf)
 is the affirmation in opposition from *Mata v. Avianca, Inc.*, No. 1:22-cv-01461-PKC (S.D.N.Y.) --
