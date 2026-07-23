@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { isSafeHyperlinkUrl } from "openclerk-core";
 import { getPlainText } from "./dom";
 import {
   CASE_HYPERLINK_CLASS,
@@ -47,6 +48,45 @@ function escapeXml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+const ALLOWED_EXPORT_SCHEMES = ["http:", "https:", "mailto:"];
+
+// Whether the raw href presents an explicit URL scheme. Per RFC 3986 a scheme is only the part
+// before the *first* colon when that colon precedes the first "/", "?" or "#"; a colon appearing
+// later belongs to a relative-path reference (e.g. "/a/b:c"), not a scheme.
+function hasExplicitScheme(href: string): boolean {
+  const colon = href.indexOf(":");
+  if (colon === -1) {
+    return false;
+  }
+  const firstDelimiter = href.search(/[/?#]/);
+  return firstDelimiter === -1 || colon < firstDelimiter;
+}
+
+// Whether a hyperlink's raw href is safe to serialize into a live <text:a xlink:href> in the
+// exported .odt. Three layers, each strictly narrowing:
+//   1. openclerk-core's isSafeHyperlinkUrl -- the same allowlist (http/https/mailto only) used
+//      everywhere links are inserted. Rejects the executable schemes (javascript:/data:/file:/
+//      vbscript:, including control-char-prefixed and mixed-case forms).
+//   2. No backslash. isSafeHyperlinkUrl *normalizes* a UNC path (\\host\share) to an https URL
+//      rather than rejecting it, but a backslash in the raw href, once resolved by a reader, is a
+//      UNC/SMB reference (an NTLM-relay/credential-leak vector). No http/https/mailto URL or
+//      relative path ever contains a backslash, so rejecting it here is safe.
+//   3. If the raw href presents an explicit scheme, that scheme (as written) must be allowlisted.
+//      isSafeHyperlinkUrl treats an obfuscated pseudo-scheme like "Java%53cript:..." as a benign
+//      relative reference (its resolved protocol is https); this flattens it. Genuine relative
+//      refs -- a provider "/opinion/12345/..." link -- have no explicit scheme and are unaffected.
+// Anything failing any layer is flattened to plain text (words kept, resolvable wrapper dropped).
+function isSafeExportHref(href: string): boolean {
+  if (!isSafeHyperlinkUrl(href) || href.includes("\\")) {
+    return false;
+  }
+  if (hasExplicitScheme(href)) {
+    const normalized = href.trimStart().toLowerCase();
+    return ALLOWED_EXPORT_SCHEMES.some((scheme) => normalized.startsWith(scheme));
+  }
+  return true;
+}
+
 const HYPERLINK_SELECTOR = `a.${CASE_HYPERLINK_CLASS}, a.${PARENTHETICAL_HYPERLINK_CLASS}, a.${MANUAL_HYPERLINK_CLASS}`;
 const INLINE_STYLE_TAGS: Record<string, string> = {
   B: "Bold",
@@ -80,7 +120,16 @@ function inlineContentToOdtXml(node: Node): string {
 
     if (element.matches(HYPERLINK_SELECTOR)) {
       const href = element.getAttribute("href") || "";
-      inner += `<text:a xlink:type="simple" xlink:href="${escapeXml(href)}">${inlineContentToOdtXml(element)}</text:a>`;
+      // Revalidate the URL scheme at the export sink, not only where links are created: an unsafe
+      // href that somehow reached the document surface must never be serialized into a live
+      // <text:a xlink:href> in the exported .odt, where opening the file could resolve it. Defense
+      // in depth over the check applied when a link is inserted -- flatten anything unsafe to plain
+      // inner text, dropping the wrapper but keeping the words. See isSafeExportHref.
+      if (isSafeExportHref(href)) {
+        inner += `<text:a xlink:type="simple" xlink:href="${escapeXml(href)}">${inlineContentToOdtXml(element)}</text:a>`;
+      } else {
+        inner += inlineContentToOdtXml(element);
+      }
     } else if (element.classList.contains(EMBED_NOTE_CLASS)) {
       const excerpt = element.getAttribute("data-excerpt") || "";
       inner += `${inlineContentToOdtXml(element)} [Embedded citation text: ${escapeXml(excerpt)}]`;

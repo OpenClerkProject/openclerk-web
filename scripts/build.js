@@ -68,6 +68,29 @@ const SCRIBE_LANG_FROM = path.join(
 );
 const SCRIBE_LANG_OUT = path.join(OUT_DIR, "scribe-lang", "eng.traineddata.gz");
 
+// tesseract.js powers OCR on the PDF & OCR Tools page and the Document Editor / Studio "load a
+// PDF" path (both via pdf/pdfText.ts -- distinct from Studio's own scribe path above). Its worker
+// script, WASM core, and English language model are self-hosted same-origin here rather than
+// fetched from tesseract.js's default jsdelivr CDN -- the same "nothing leaves the browser" model
+// as the scribe assets, and what lets every page's Content-Security-Policy stay 'self'-only (no
+// CDN script/connect/worker origins). These are the exact files those packages would otherwise
+// serve from the CDN; see pdf/pdfText.ts createOcrWorker for the matching workerPath/corePath/
+// langPath. Build-copied into dist/, never committed -- same as the pdf worker and scribe assets.
+const TESSERACT_WORKER_FROM = path.join(ROOT, "node_modules/tesseract.js/dist/worker.min.js");
+const TESSERACT_WORKER_OUT = path.join(OUT_DIR, "tesseract-worker.min.js");
+// The WASM core ships several build variants (SIMD / non-SIMD, LSTM); tesseract.js picks the right
+// one at runtime from this directory based on the device's capabilities, so the whole directory is
+// vendored. corePath in pdfText.ts points here.
+const TESSERACT_CORE_SRC = path.join(ROOT, "node_modules/tesseract.js-core");
+const TESSERACT_CORE_OUT = path.join(OUT_DIR, "tesseract-core");
+// Same English trained-data the scribe path uses, from the @tesseract.js-data/eng devDependency;
+// langPath in pdfText.ts points at this directory and tesseract.js appends eng.traineddata.gz.
+const TESSERACT_LANG_FROM = path.join(
+  ROOT,
+  "node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz",
+);
+const TESSERACT_LANG_OUT = path.join(OUT_DIR, "tesseract-lang", "eng.traineddata.gz");
+
 // Read directly from the installed package rather than this project's own package.json, so the
 // UI reflects whatever openclerk-core build actually got bundled (its git ref is a tag, not an
 // exact pin -- see README's stale-lockfile note) rather than just the declared dependency range.
@@ -107,6 +130,24 @@ async function build() {
   });
 
   vendorScribe();
+  vendorTesseract();
+}
+
+// Copies tesseract.js's self-hosted worker/core/language assets into dist/. The worker script and
+// language file are small and always copied; the WASM core directory (~29 MB across build
+// variants) is the slow part, so -- like vendorScribe -- it's skipped when already present unless
+// OPENCLERK_REVENDOR_TESSERACT is set to force a refresh.
+function vendorTesseract() {
+  fs.copyFileSync(TESSERACT_WORKER_FROM, TESSERACT_WORKER_OUT);
+  fs.mkdirSync(path.dirname(TESSERACT_LANG_OUT), { recursive: true });
+  fs.copyFileSync(TESSERACT_LANG_FROM, TESSERACT_LANG_OUT);
+
+  const alreadyVendored = fs.existsSync(path.join(TESSERACT_CORE_OUT, "tesseract-core.wasm"));
+  if (alreadyVendored && !process.env.OPENCLERK_REVENDOR_TESSERACT) {
+    return;
+  }
+  fs.mkdirSync(TESSERACT_CORE_OUT, { recursive: true });
+  fs.cpSync(TESSERACT_CORE_SRC, TESSERACT_CORE_OUT, { recursive: true });
 }
 
 // Copies scribe's self-hosted browser subtree + language data into dist/. Skipped when already
